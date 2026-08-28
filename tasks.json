@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "pay-bills",
+      "name": "Zaplacic rachunki",
+      "dates": [
+        "2026-09-10",
+        "2026-10-10"
+      ]
+    }
+  ]
+}
