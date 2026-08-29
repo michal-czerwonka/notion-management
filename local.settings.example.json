@@ -7,6 +7,6 @@
     "Scheduler:TimeZone": "UTC",
     "Tasks:FilePath": "tasks.json",
     "Notion:Token": "",
-    "Notion:DatabaseId": "34c8bc09-19d3-80a0-83e7-f6f9ced85c2c"
+    "Notion:DataSourceId": "34c8bc09-19d3-80b2-9e8c-000b798e750e"
   }
 }

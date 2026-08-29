@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using NotionTaskScheduler.Models;
 
@@ -7,11 +8,12 @@ namespace NotionTaskScheduler.Services;
 
 public sealed class NotionClient
 {
-    private const string NotionVersion = "2022-06-28";
+    private const string NotionVersion = "2026-03-11";
+    private const string TodoStatusName = "Do zrobienia";
 
     private readonly HttpClient _httpClient;
     private readonly string _token;
-    private readonly string _databaseId;
+    private readonly string _dataSourceId;
 
     public NotionClient(HttpClient httpClient, IConfiguration configuration)
     {
@@ -22,7 +24,7 @@ public sealed class NotionClient
         _token = configuration["Notion:Token"] ?? "";
 
         // TODO: uzupelnic w konfiguracji po utworzeniu docelowej bazy Notion.
-        _databaseId = configuration["Notion:DatabaseId"] ?? "";
+        _dataSourceId = configuration["Notion:DataSourceId"] ?? "";
     }
 
     public async Task CreateTaskAsync(DueTask task, CancellationToken cancellationToken)
@@ -32,39 +34,51 @@ public sealed class NotionClient
             throw new InvalidOperationException("Missing Notion:Token configuration.");
         }
 
-        if (string.IsNullOrWhiteSpace(_databaseId) || _databaseId.StartsWith("TODO", StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(_dataSourceId) || _dataSourceId.StartsWith("TODO", StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("Missing Notion:DatabaseId configuration.");
+            throw new InvalidOperationException("Missing Notion:DataSourceId configuration.");
         }
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "pages")
         {
-            Content = JsonContent.Create(new
+            Content = CreateJsonContent(new Dictionary<string, object?>
             {
-                parent = new
+                ["parent"] = new Dictionary<string, object?>
                 {
-                    database_id = _databaseId
+                    ["type"] = "data_source_id",
+                    ["data_source_id"] = _dataSourceId
                 },
-                properties = new
+                ["properties"] = new Dictionary<string, object?>
                 {
-                    Name = new
+                    ["Nazwa"] = new Dictionary<string, object?>
                     {
-                        title = new[]
+                        ["type"] = "title",
+                        ["title"] = new object[]
                         {
-                            new
+                            new Dictionary<string, object?>
                             {
-                                text = new
+                                ["type"] = "text",
+                                ["text"] = new Dictionary<string, object?>
                                 {
-                                    content = task.Name
+                                    ["content"] = task.Name
                                 }
                             }
                         }
                     },
-                    Due = new
+                    ["Zaplanowane na"] = new Dictionary<string, object?>
                     {
-                        date = new
+                        ["type"] = "date",
+                        ["date"] = new Dictionary<string, object?>
                         {
-                            start = task.Date.ToString("yyyy-MM-dd")
+                            ["start"] = task.Date.ToString("yyyy-MM-dd")
+                        }
+                    },
+                    ["Status"] = new Dictionary<string, object?>
+                    {
+                        ["type"] = "status",
+                        ["status"] = new Dictionary<string, object?>
+                        {
+                            ["name"] = TodoStatusName
                         }
                     }
                 }
@@ -75,5 +89,12 @@ public sealed class NotionClient
 
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
+    }
+
+    private static StringContent CreateJsonContent(object payload)
+    {
+        var json = JsonSerializer.Serialize(payload);
+
+        return new StringContent(json, Encoding.UTF8, "application/json");
     }
 }

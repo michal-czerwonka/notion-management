@@ -33,11 +33,19 @@ Use `local.settings.json` locally, based on `local.settings.example.json`. Do no
 Required settings:
 
 - `Notion:Token` - Notion integration token, read through `IConfiguration`.
-- `Notion:DatabaseId` - TODO: fill this after the target Notion database is created.
+- `Notion:DataSourceId` - target Notion data source id for the `Zadania` database.
 - `Scheduler:Schedule` - NCRONTAB expression for the timer trigger.
 - `Scheduler:TimeZone` - timezone used for selecting "today"; currently `UTC`.
 - `Tasks:FilePath` - task definition file path; defaults to `tasks.json`.
 
-For Azure app settings, use the equivalent environment variable names, for example `Notion__Token` and `Notion__DatabaseId`.
+For Azure app settings, use the equivalent environment variable names, for example `Notion__Token` and `Notion__DataSourceId`.
 
 Do not log tokens, credentials, connection strings, or Authorization headers.
+
+Created tasks set these Notion properties:
+
+- `Nazwa` - task name.
+- `Zaplanowane na` - scheduled date from `tasks.json`.
+- `Status` - `Do zrobienia`.
+
+`Created at` is a Notion `created_time` property, so Notion fills it automatically when the page is created.
