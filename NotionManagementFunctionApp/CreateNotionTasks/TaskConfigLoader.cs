@@ -1,9 +1,8 @@
+using Microsoft.Extensions.Configuration;
 using System.Globalization;
 using System.Text.Json;
-using Microsoft.Extensions.Configuration;
-using NotionManagementFunctionApp.Models;
 
-namespace NotionManagementFunctionApp.Services;
+namespace NotionManagementFunctionApp.CreateNotionTasks;
 
 public sealed class TaskConfigLoader
 {
@@ -13,7 +12,7 @@ public sealed class TaskConfigLoader
 
     public TaskConfigLoader(IConfiguration configuration)
     {
-        _filePath = configuration["Tasks:FilePath"] ?? "tasks.json";
+        _filePath = configuration["Tasks:FilePath"] ?? "CreateNotionTasks/tasks.json";
     }
 
     public async Task<IReadOnlyList<DueTask>> LoadDueTasksAsync(DateOnly date, CancellationToken cancellationToken)

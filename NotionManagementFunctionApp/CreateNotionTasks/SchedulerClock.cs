@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Configuration;
 
-namespace NotionManagementFunctionApp.Services;
+namespace NotionManagementFunctionApp.CreateNotionTasks;
 
 public sealed class SchedulerClock
 {

@@ -2,11 +2,10 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
-using NotionManagementFunctionApp.Models;
 
-namespace NotionManagementFunctionApp.Services;
+namespace NotionManagementFunctionApp.CreateNotionTasks;
 
-public sealed class NotionClient
+public sealed class NotionTasksClient
 {
     private const string NotionVersion = "2026-03-11";
     private const string TodoStatusName = "Do zrobienia";
@@ -15,7 +14,7 @@ public sealed class NotionClient
     private readonly string _token;
     private readonly string _dataSourceId;
 
-    public NotionClient(HttpClient httpClient, IConfiguration configuration)
+    public NotionTasksClient(HttpClient httpClient, IConfiguration configuration)
     {
         _httpClient = httpClient;
         _httpClient.BaseAddress = new Uri("https://api.notion.com/v1/");

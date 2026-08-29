@@ -1,34 +1,39 @@
-using System.Globalization;
-using System.Net;
-using System.Text.Json;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
-using NotionManagementFunctionApp.Models;
-using NotionManagementFunctionApp.Services;
+using System.Globalization;
+using System.Net;
+using System.Text.Json;
 
-namespace NotionManagementFunctionApp.Functions;
+namespace NotionManagementFunctionApp.CreateNotionTasks;
 
-public sealed class RunNotionTasksHttpFunction
+public sealed class CreateNotionTasksFunction
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     private readonly SchedulerClock _clock;
-    private readonly NotionTaskRunner _runner;
-    private readonly ILogger<RunNotionTasksHttpFunction> _logger;
+    private readonly CreateNotionTasksRunner _runner;
+    private readonly ILogger<CreateNotionTasksFunction> _logger;
 
-    public RunNotionTasksHttpFunction(
+    public CreateNotionTasksFunction(
         SchedulerClock clock,
-        NotionTaskRunner runner,
-        ILogger<RunNotionTasksHttpFunction> logger)
+        CreateNotionTasksRunner runner,
+        ILogger<CreateNotionTasksFunction> logger)
     {
         _clock = clock;
         _runner = runner;
         _logger = logger;
     }
 
-    [Function(nameof(RunNotionTasksHttpFunction))]
-    public async Task<HttpResponseData> Run(
+    [Function(nameof(CreateNotionTasksFunction))]
+    public async Task RunTimer([TimerTrigger("%Scheduler:Schedule%")] TimerInfo timerInfo, CancellationToken cancellationToken)
+    {
+        var today = _clock.Today();
+        await _runner.RunAsync(today, cancellationToken);
+    }
+
+    [Function("CreateNotionTasksFunctionHttp")]
+    public async Task<HttpResponseData> RunHttp(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "run")] HttpRequestData request,
         CancellationToken cancellationToken)
     {

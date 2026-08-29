@@ -1,21 +1,20 @@
 using Microsoft.Extensions.Logging;
-using NotionManagementFunctionApp.Models;
 
-namespace NotionManagementFunctionApp.Services;
+namespace NotionManagementFunctionApp.CreateNotionTasks;
 
-public sealed class NotionTaskRunner
+public sealed class CreateNotionTasksRunner
 {
     private readonly TaskConfigLoader _taskConfigLoader;
-    private readonly NotionClient _notionClient;
-    private readonly ILogger<NotionTaskRunner> _logger;
+    private readonly NotionTasksClient _notionTasksClient;
+    private readonly ILogger<CreateNotionTasksRunner> _logger;
 
-    public NotionTaskRunner(
+    public CreateNotionTasksRunner(
         TaskConfigLoader taskConfigLoader,
-        NotionClient notionClient,
-        ILogger<NotionTaskRunner> logger)
+        NotionTasksClient notionTasksClient,
+        ILogger<CreateNotionTasksRunner> logger)
     {
         _taskConfigLoader = taskConfigLoader;
-        _notionClient = notionClient;
+        _notionTasksClient = notionTasksClient;
         _logger = logger;
     }
 
@@ -35,7 +34,7 @@ public sealed class NotionTaskRunner
         {
             try
             {
-                var createdPage = await _notionClient.CreateTaskAsync(task, cancellationToken);
+                var createdPage = await _notionTasksClient.CreateTaskAsync(task, cancellationToken);
                 created++;
                 createdTasks.Add(new CreatedNotionTask(
                     task.Id,

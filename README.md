@@ -12,7 +12,7 @@ The timer is configured through `Scheduler:Schedule`. The sample value runs ever
 "Scheduler:Schedule": "0 0 8 * * *"
 ```
 
-Task definitions live in `NotionManagementFunctionApp/tasks.json`, which is copied to build output and publish artifacts.
+Task definitions live in `NotionManagementFunctionApp/CreateNotionTasks/tasks.json`, which is copied to build output and publish artifacts.
 
 ## Manual Run
 
