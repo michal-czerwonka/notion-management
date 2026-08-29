@@ -5,4 +5,5 @@ public sealed record RunNotionTasksResult(
     int Found,
     int Created,
     int Failed,
+    IReadOnlyList<CreatedNotionTask> CreatedTasks,
     IReadOnlyList<string> Errors);

@@ -29,15 +29,34 @@ public sealed class NotionTaskRunner
         var created = 0;
         var failed = 0;
         var errors = new List<string>();
+        var createdTasks = new List<CreatedNotionTask>();
 
         foreach (var task in dueTasks)
         {
             try
             {
-                await _notionClient.CreateTaskAsync(task, cancellationToken);
+                var createdPage = await _notionClient.CreateTaskAsync(task, cancellationToken);
                 created++;
+                createdTasks.Add(new CreatedNotionTask(
+                    task.Id,
+                    task.Date,
+                    createdPage.PageId,
+                    createdPage.Url,
+                    createdPage.PublicUrl,
+                    createdPage.CreatedTime,
+                    createdPage.ParentType,
+                    createdPage.ParentId));
 
-                _logger.LogInformation("Created Notion task for configured task id '{TaskId}' and date {Date}.", task.Id, task.Date);
+                _logger.LogInformation(
+                    "Created Notion task for configured task id '{TaskId}' and date {Date}. PageId: {PageId}. Url: {Url}. PublicUrl: {PublicUrl}. CreatedTime: {CreatedTime}. ParentType: {ParentType}. ParentId: {ParentId}.",
+                    task.Id,
+                    task.Date,
+                    createdPage.PageId,
+                    createdPage.Url,
+                    createdPage.PublicUrl,
+                    createdPage.CreatedTime,
+                    createdPage.ParentType,
+                    createdPage.ParentId);
             }
             catch (Exception ex)
             {
@@ -50,6 +69,6 @@ public sealed class NotionTaskRunner
 
         _logger.LogInformation("Finished Notion task creation for {Date}. Created: {CreatedCount}. Failed: {FailedCount}.", date, created, failed);
 
-        return new RunNotionTasksResult(date, dueTasks.Count, created, failed, errors);
+        return new RunNotionTasksResult(date, dueTasks.Count, created, failed, createdTasks, errors);
     }
 }

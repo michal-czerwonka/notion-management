@@ -27,7 +27,7 @@ public sealed class NotionClient
         _dataSourceId = configuration["Notion:DataSourceId"] ?? "";
     }
 
-    public async Task CreateTaskAsync(DueTask task, CancellationToken cancellationToken)
+    public async Task<NotionCreatePageResult> CreateTaskAsync(DueTask task, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(_token))
         {
@@ -88,7 +88,14 @@ public sealed class NotionClient
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _token);
 
         using var response = await _httpClient.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"Notion API returned {(int)response.StatusCode} {response.ReasonPhrase}: {responseBody}");
+        }
+
+        return ParseCreatePageResponse(responseBody);
     }
 
     private static StringContent CreateJsonContent(object payload)
@@ -96,5 +103,49 @@ public sealed class NotionClient
         var json = JsonSerializer.Serialize(payload);
 
         return new StringContent(json, Encoding.UTF8, "application/json");
+    }
+
+    private static NotionCreatePageResult ParseCreatePageResponse(string responseBody)
+    {
+        using var document = JsonDocument.Parse(responseBody);
+        var root = document.RootElement;
+
+        var pageId = GetString(root, "id") ?? throw new InvalidOperationException("Notion response did not include page id.");
+        var createdTime = GetDateTimeOffset(root, "created_time");
+        var parentType = GetProperty(root, "parent") is { } parent
+            ? GetString(parent, "type")
+            : null;
+        var parentId = parentType is null || GetProperty(root, "parent") is not { } parentElement
+            ? null
+            : GetString(parentElement, parentType);
+
+        return new NotionCreatePageResult(
+            pageId,
+            GetString(root, "url"),
+            GetString(root, "public_url"),
+            createdTime,
+            parentType,
+            parentId);
+    }
+
+    private static JsonElement? GetProperty(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property)
+            ? property
+            : null;
+    }
+
+    private static string? GetString(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
+            ? property.GetString()
+            : null;
+    }
+
+    private static DateTimeOffset? GetDateTimeOffset(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
+            ? property.GetDateTimeOffset()
+            : null;
     }
 }
