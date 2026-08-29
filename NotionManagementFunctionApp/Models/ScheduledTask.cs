@@ -1,4 +1,4 @@
-namespace NotionTaskScheduler.Models;
+namespace NotionManagementFunctionApp.Models;
 
 public sealed class ScheduledTask
 {

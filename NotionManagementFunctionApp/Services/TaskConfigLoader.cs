@@ -1,9 +1,9 @@
 using System.Globalization;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
-using NotionTaskScheduler.Models;
+using NotionManagementFunctionApp.Models;
 
-namespace NotionTaskScheduler.Services;
+namespace NotionManagementFunctionApp.Services;
 
 public sealed class TaskConfigLoader
 {

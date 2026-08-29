@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
-using NotionTaskScheduler.Models;
+using NotionManagementFunctionApp.Models;
 
-namespace NotionTaskScheduler.Services;
+namespace NotionManagementFunctionApp.Services;
 
 public sealed class NotionTaskRunner
 {

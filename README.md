@@ -1,6 +1,10 @@
-# NotionTaskScheduler
+# NotionManagement
 
-Small Azure Functions 4 app using the C# isolated worker model on .NET 10.
+Solution for Notion-related automation.
+
+Current projects:
+
+- `NotionManagementFunctionApp` - Azure Functions 4 app using the C# isolated worker model on .NET 10.
 
 The timer is configured through `Scheduler:Schedule`. The sample value runs every day at 08:00 UTC:
 
@@ -8,7 +12,7 @@ The timer is configured through `Scheduler:Schedule`. The sample value runs ever
 "Scheduler:Schedule": "0 0 8 * * *"
 ```
 
-Task definitions live in `tasks.json`, which is copied to build output and publish artifacts.
+Task definitions live in `NotionManagementFunctionApp/tasks.json`, which is copied to build output and publish artifacts.
 
 ## Manual Run
 

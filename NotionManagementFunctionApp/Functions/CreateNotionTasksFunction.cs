@@ -1,7 +1,7 @@
 using Microsoft.Azure.Functions.Worker;
-using NotionTaskScheduler.Services;
+using NotionManagementFunctionApp.Services;
 
-namespace NotionTaskScheduler.Functions;
+namespace NotionManagementFunctionApp.Functions;
 
 public sealed class CreateNotionTasksFunction
 {

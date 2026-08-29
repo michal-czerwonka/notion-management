@@ -4,10 +4,10 @@ using System.Text.Json;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
-using NotionTaskScheduler.Models;
-using NotionTaskScheduler.Services;
+using NotionManagementFunctionApp.Models;
+using NotionManagementFunctionApp.Services;
 
-namespace NotionTaskScheduler.Functions;
+namespace NotionManagementFunctionApp.Functions;
 
 public sealed class RunNotionTasksHttpFunction
 {

@@ -1,6 +1,8 @@
-namespace NotionTaskScheduler.Models;
+namespace NotionManagementFunctionApp.Models;
 
-public sealed record NotionCreatePageResult(
+public sealed record CreatedNotionTask(
+    string TaskId,
+    DateOnly Date,
     string PageId,
     string? Url,
     string? PublicUrl,
