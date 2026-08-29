@@ -10,6 +10,22 @@ The timer is configured through `Scheduler:Schedule`. The sample value runs ever
 
 Task definitions live in `tasks.json`, which is copied to build output and publish artifacts.
 
+## Manual Run
+
+Run the same workflow manually with:
+
+```http
+POST /api/run
+```
+
+An empty body runs for the current scheduler date. You can also provide an explicit date:
+
+```json
+{
+  "date": "2026-09-10"
+}
+```
+
 ## Configuration
 
 Use `local.settings.json` locally, based on `local.settings.example.json`. Do not commit `local.settings.json`.

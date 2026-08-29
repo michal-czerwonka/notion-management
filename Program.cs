@@ -9,6 +9,7 @@ var host = new HostBuilder()
     {
         services.AddSingleton<TaskConfigLoader>();
         services.AddSingleton<SchedulerClock>();
+        services.AddSingleton<NotionTaskRunner>();
         services.AddHttpClient<NotionClient>();
     })
     .Build();
