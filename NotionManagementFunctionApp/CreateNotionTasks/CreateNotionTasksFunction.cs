@@ -34,7 +34,7 @@ public sealed class CreateNotionTasksFunction
 
     [Function("CreateNotionTasksFunctionHttp")]
     public async Task<HttpResponseData> RunHttp(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "run")] HttpRequestData request,
+        [HttpTrigger(AuthorizationLevel.Function, "post", Route = "run")] HttpRequestData request,
         CancellationToken cancellationToken)
     {
         var (requestedDate, error) = await ReadRequestedDateAsync(request, cancellationToken);
