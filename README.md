@@ -53,3 +53,16 @@ Created tasks set these Notion properties:
 - `Status` - `Do zrobienia`.
 
 `Created at` is a Notion `created_time` property, so Notion fills it automatically when the page is created.
+
+## Deployment
+
+Use `NotionManagementFunctionApp/deploy.ps1` from the function app directory. Fill the configuration section first, especially `SubscriptionId`, `FunctionAppName`, and `StorageAccountName`.
+
+Do not write the Notion token into the script. Set it for the current PowerShell session:
+
+```powershell
+$env:NOTION_TOKEN = "secret_xxx"
+.\deploy.ps1
+```
+
+The script creates or reuses the resource group, storage account, and Windows Consumption Function App, configures app settings, builds the solution, and publishes the function app.

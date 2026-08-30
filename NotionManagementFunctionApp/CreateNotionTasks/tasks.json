@@ -3,9 +3,9 @@
   "tasks": [
     {
       "id": "pay-bills",
-      "name": "Zaplacic rachunki",
+      "name": "Zaplacic rachunki - test z azure",
       "dates": [
-        "2026-08-29"
+        "2026-08-30"
       ]
     }
   ]
