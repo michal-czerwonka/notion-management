@@ -12,7 +12,7 @@ The timer is configured through `Scheduler:Schedule`. The sample value runs ever
 "Scheduler:Schedule": "0 0 8 * * *"
 ```
 
-Task definitions live in `NotionManagementFunctionApp/CreateNotionTasks/tasks.json`, which is copied to build output and publish artifacts.
+Task definitions live in `NotionManagementFunctionApp/CreateNotionTasks/tasks.json`, which is copied to build output and publish artifacts. Dates inside task definitions use `dd.MM`, for example `30.08`; the app uses the current run year when creating the Notion date.
 
 ## Manual Run
 
@@ -40,7 +40,7 @@ Required settings:
 - `Notion:DataSourceId` - target Notion data source id for the `Zadania` database.
 - `Scheduler:Schedule` - NCRONTAB expression for the timer trigger.
 - `Scheduler:TimeZone` - timezone used for selecting "today"; currently `UTC`.
-- `Tasks:FilePath` - task definition file path; defaults to `tasks.json`.
+- `Tasks:FilePath` - task definition file path; defaults to `CreateNotionTasks/tasks.json`.
 
 For Azure app settings, use the equivalent environment variable names, for example `Notion__Token` and `Notion__DataSourceId`.
 

@@ -6,6 +6,9 @@ namespace NotionManagementFunctionApp.CreateNotionTasks;
 
 public sealed class TaskConfigLoader
 {
+    private const string TaskDateFormat = "dd.MM";
+    private const int LeapYear = 2024;
+
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     private readonly string _filePath;
@@ -25,9 +28,9 @@ public sealed class TaskConfigLoader
 
         return tasksFile.Tasks
             .SelectMany(task => task.Dates
-                .Select(rawDate => DateOnly.ParseExact(rawDate, "yyyy-MM-dd", CultureInfo.InvariantCulture))
-                .Where(taskDate => taskDate == date)
-                .Select(taskDate => new DueTask(task.Id, task.Name, taskDate)))
+                .Select(ParseMonthDay)
+                .Where(monthDay => monthDay.Month == date.Month && monthDay.Day == date.Day)
+                .Select(_ => new DueTask(task.Id, task.Name, date)))
             .ToArray();
     }
 
@@ -67,11 +70,38 @@ public sealed class TaskConfigLoader
 
             foreach (var rawDate in task.Dates)
             {
-                if (!DateOnly.TryParseExact(rawDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
+                if (!TryParseMonthDay(rawDate, out _))
                 {
-                    throw new InvalidOperationException($"Task '{task.Id}' contains invalid date '{rawDate}'. Expected yyyy-MM-dd.");
+                    throw new InvalidOperationException($"Task '{task.Id}' contains invalid date '{rawDate}'. Expected dd.MM.");
                 }
             }
         }
     }
+
+    private static MonthDay ParseMonthDay(string rawDate)
+    {
+        return TryParseMonthDay(rawDate, out var monthDay)
+            ? monthDay
+            : throw new InvalidOperationException($"Invalid task date '{rawDate}'. Expected dd.MM.");
+    }
+
+    private static bool TryParseMonthDay(string rawDate, out MonthDay monthDay)
+    {
+        monthDay = default;
+
+        if (!DateOnly.TryParseExact(
+            $"{rawDate}.{LeapYear}",
+            $"{TaskDateFormat}.yyyy",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out var parsedDate))
+        {
+            return false;
+        }
+
+        monthDay = new MonthDay(parsedDate.Month, parsedDate.Day);
+        return true;
+    }
+
+    private readonly record struct MonthDay(int Month, int Day);
 }
