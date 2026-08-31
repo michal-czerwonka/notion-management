@@ -12,7 +12,22 @@ The timer is configured through `Scheduler:Schedule`. The sample value runs ever
 "Scheduler:Schedule": "0 0 8 * * *"
 ```
 
-Task definitions live in `NotionManagementFunctionApp/CreateNotionTasks/tasks.json`, which is copied to build output and publish artifacts. Dates inside task definitions use `dd.MM`, for example `30.08`; the app uses the current run year when creating the Notion date.
+Task definitions live in `NotionManagementFunctionApp/CreateNotionTasks/tasks.json`, which is copied to build output and publish artifacts. Dates inside task definitions use `dd.MM`, for example `30.08`; the app uses the current run year when creating the Notion date. Invalid date entries such as `29.02` or `13.45` are ignored.
+
+Tasks can also include calendar rules. `dates` and `rules` complement each other; if either matches the run date, the task is created once.
+
+```json
+{
+  "id": "pay-bills",
+  "name": "Zaplacic rachunki",
+  "dates": ["30.08"],
+  "rules": [
+    { "type": "daily" },
+    { "type": "weekly", "dayOfWeek": "Monday" },
+    { "type": "monthly", "day": 10 }
+  ]
+}
+```
 
 ## Manual Run
 

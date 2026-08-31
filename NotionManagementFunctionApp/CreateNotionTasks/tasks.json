@@ -6,6 +6,39 @@
       "name": "Zaplacic rachunki - test z azure",
       "dates": [
         "30.08"
+      ],
+      "rules": []
+    },
+    {
+      "id": "daily-scheduler-smoke-test",
+      "name": "Test NotionTaskScheduler - codzienne zadanie",
+      "dates": [],
+      "rules": [
+        {
+          "type": "daily"
+        }
+      ]
+    },
+    {
+      "id": "monthly-bills",
+      "name": "zapłacić rachunki",
+      "dates": [],
+      "rules": [
+        {
+          "type": "monthly",
+          "day": 10
+        }
+      ]
+    },
+    {
+      "id": "gas-read",
+      "name": "Spisać licznik gazu i wpisać wynik",
+      "dates": [],
+      "rules": [
+        {
+          "type": "monthly",
+          "day": 5
+        }
       ]
     }
   ]

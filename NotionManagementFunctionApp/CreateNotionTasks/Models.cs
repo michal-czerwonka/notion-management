@@ -12,6 +12,17 @@ public sealed class ScheduledTask
     public string Name { get; set; } = "";
 
     public List<string> Dates { get; set; } = [];
+
+    public List<TaskScheduleRule> Rules { get; set; } = [];
+}
+
+public sealed class TaskScheduleRule
+{
+    public string Type { get; set; } = "";
+
+    public string? DayOfWeek { get; set; }
+
+    public int? Day { get; set; }
 }
 
 public sealed class TasksFile
