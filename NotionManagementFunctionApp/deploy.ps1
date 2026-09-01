@@ -20,10 +20,14 @@ $StorageAccountName = "notionmanagementrgb0f3" # Must be globally unique, 3-24 c
 $SchedulerSchedule = "0 0 6 * * *"
 $SchedulerTimeZone = "UTC"
 $TasksFilePath = "CreateNotionTasks/tasks.json"
+$NotificationsSchedule = "0 0 12 * * *"
 $NotionDataSourceId = "34c8bc09-19d3-80b2-9e8c-000b798e750e"
+$NotionTodayViewName = "Na dzisiaj"
+$NtfyBaseUrl = "https://ntfy.sh"
+$NtfyTopic = "CHPqQe5yp12AJiv1" # Fill with your private, hard-to-guess ntfy topic name.
 
-# Prefer setting NOTION_TOKEN in the current PowerShell session instead of writing
-# the token into this file:
+# Prefer setting secrets in the current PowerShell session instead of writing them
+# into this file:
 #   $env:NOTION_TOKEN = "secret_xxx"
 $NotionToken = $env:NOTION_TOKEN
 
@@ -77,6 +81,9 @@ Require-ConfigValue "Location" $Location
 Require-ConfigValue "FunctionAppName" $FunctionAppName
 Require-ConfigValue "StorageAccountName" $StorageAccountName
 Require-ConfigValue "NotionDataSourceId" $NotionDataSourceId
+Require-ConfigValue "NotionTodayViewName" $NotionTodayViewName
+Require-ConfigValue "NtfyBaseUrl" $NtfyBaseUrl
+Require-ConfigValue "NtfyTopic" $NtfyTopic
 
 if ([string]::IsNullOrWhiteSpace($NotionToken)) {
     $secureToken = Read-Host "Enter Notion token" -AsSecureString
@@ -161,8 +168,12 @@ az functionapp config appsettings set `
         "Scheduler__Schedule=$SchedulerSchedule" `
         "Scheduler__TimeZone=$SchedulerTimeZone" `
         "Tasks__FilePath=$TasksFilePath" `
+        "Notifications__Schedule=$NotificationsSchedule" `
         "Notion__DataSourceId=$NotionDataSourceId" `
+        "Notion__TodayViewName=$NotionTodayViewName" `
         "Notion__Token=$NotionToken" `
+        "Ntfy__BaseUrl=$NtfyBaseUrl" `
+        "Ntfy__Topic=$NtfyTopic" `
     --output none
 
 Write-Host "Building solution..."
@@ -178,5 +189,5 @@ finally {
 }
 
 Write-Host "Deployment finished."
-Write-Host "HTTP endpoint: https://$FunctionAppName.azurewebsites.net/api/run"
+Write-Host "Manual create endpoint: https://$FunctionAppName.azurewebsites.net/api/run"
 Write-Host "Get the x-functions-key from Azure Portal: Function App -> Functions -> CreateNotionTasksFunctionHttp -> Function Keys."

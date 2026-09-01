@@ -47,7 +47,7 @@ An empty body runs for the current scheduler date. You can also provide an expli
 
 ## Configuration
 
-Use `local.settings.json` locally, based on `local.settings.example.json`. Do not commit `local.settings.json`.
+Use `local.settings.json` locally. Do not commit `local.settings.json`.
 
 Required settings:
 
@@ -81,3 +81,60 @@ $env:NOTION_TOKEN = "secret_xxx"
 ```
 
 The script creates or reuses the resource group, storage account, and Windows Consumption Function App, configures app settings, builds the solution, and publishes the function app.
+## Notion Task Notifications
+
+`SendNotionTaskNotificationsFunction` runs on `Notifications:Schedule`. The default deployment setting is `0 0 12 * * *`, so notifications are sent daily at 12:00 UTC.
+
+Notion is the source of truth. The function lists views for `Notion:DataSourceId`, finds the view named by `Notion:TodayViewName`, queries that view, and sends one summary notification. It does not reimplement due-date, overdue, status, or completion rules in C#.
+
+If the Notion view contains no tasks, no notification is sent.
+
+Required settings:
+
+- `Notifications:Schedule` / `Notifications__Schedule` - timer schedule for notifications.
+- `Notion:TodayViewName` / `Notion__TodayViewName` - defaults to `Na dzisiaj`.
+- `Ntfy:BaseUrl` / `Ntfy__BaseUrl` - defaults to `https://ntfy.sh`.
+- `Ntfy:Topic` / `Ntfy__Topic` - your ntfy topic.
+
+### ntfy Setup From Scratch
+
+1. You do not need an ntfy account for an unprotected topic on `https://ntfy.sh`.
+2. Pick a long, hard-to-guess topic name. Treat it like a secret: anyone who knows an unprotected topic can publish to it and subscribe to it.
+3. Install the ntfy app on your phone.
+4. Subscribe to the same topic in the phone app. Topics are created on first use, so there is no separate topic creation step.
+5. Locally, set these values in `local.settings.json`:
+
+```json
+"Notifications:Schedule": "0 0 12 * * *",
+"Notion:TodayViewName": "Na dzisiaj",
+"Ntfy:BaseUrl": "https://ntfy.sh",
+"Ntfy:Topic": "your-private-topic"
+```
+
+6. In Azure Function App Settings, set:
+
+```text
+Notifications__Schedule = 0 0 12 * * *
+Notion__TodayViewName = Na dzisiaj
+Ntfy__BaseUrl = https://ntfy.sh
+Ntfy__Topic = your-private-topic
+```
+
+7. To test ntfy manually before using the Function App:
+
+```powershell
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "https://ntfy.sh/your-private-topic" `
+  -Headers @{ Title = "Zadania na dzisiaj" } `
+  -Body "Zadania na dzisiaj: 1`n`n• Test"
+```
+
+8. To deploy these settings with `deploy.ps1`, set the Notion secret in the current PowerShell session:
+
+```powershell
+$env:NOTION_TOKEN = "secret_xxx"
+.\deploy.ps1
+```
+
+Fill `$NtfyTopic` in `deploy.ps1` before running it.
