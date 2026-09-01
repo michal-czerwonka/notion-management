@@ -1,3 +1,25 @@
 {
-  "version": "2.0"
+  "version": "2.0",
+  "logging": {
+    "logLevel": {
+      "default": "Information",
+      "Microsoft": "Warning",
+      "Microsoft.Azure.Functions.Worker": "Information",
+      "Function": "Information"
+    },
+    "applicationInsights": {
+      "samplingSettings": {
+        "isEnabled": true,
+        "maxTelemetryItemsPerSecond": 5,
+        "excludedTypes": "Exception;Trace"
+      },
+      "enableDependencyTracking": false,
+      "enablePerformanceCountersCollection": false,
+      "httpAutoCollectionOptions": {
+        "enableHttpTriggerExtendedInfoCollection": false,
+        "enableW3CDistributedTracing": false,
+        "enableResponseHeaderInjection": false
+      }
+    }
+  }
 }

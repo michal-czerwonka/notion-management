@@ -81,6 +81,42 @@ $env:NOTION_TOKEN = "secret_xxx"
 ```
 
 The script creates or reuses the resource group, storage account, and Windows Consumption Function App, configures app settings, builds the solution, and publishes the function app.
+
+## Application Insights
+
+`deploy.ps1` creates or reuses:
+
+- Log Analytics workspace: `notion-management-law`.
+- Workspace-based Application Insights resource: `notion-management-ai`.
+
+The script reads the Application Insights connection string from Azure and stores it in the Function App setting:
+
+```text
+APPLICATIONINSIGHTS_CONNECTION_STRING = <read from Azure during deployment>
+```
+
+The Function App sends application logs directly from the isolated worker to Application Insights. The configuration keeps `ILogger` information logs and exceptions, while filtering dependency and request telemetry emitted by the worker. Host-level dependency tracking and performance counter collection are disabled in `host.json` to keep telemetry volume low.
+
+Useful KQL queries in Application Insights Logs:
+
+```kusto
+traces
+| order by timestamp desc
+| take 50
+```
+
+```kusto
+exceptions
+| order by timestamp desc
+| take 50
+```
+
+```kusto
+traces
+| where severityLevel >= 1
+| order by timestamp desc
+| take 100
+```
 ## Notion Task Notifications
 
 `SendNotionTaskNotificationsFunction` runs on `Notifications:Schedule`. The default deployment setting is `0 0 15,23 * * *`, so notifications are sent daily at 15:00 and 23:00 Europe/Warsaw time.

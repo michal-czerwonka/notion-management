@@ -16,6 +16,8 @@ $Location = "westeurope"
 
 $FunctionAppName = "notion-management-func" # Must be globally unique under azurewebsites.net.
 $StorageAccountName = "notionmanagementrgb0f3" # Must be globally unique, 3-24 chars, lowercase letters and numbers only. Example: "notionmgmtst001"
+$LogAnalyticsWorkspaceName = "notion-management-law"
+$ApplicationInsightsName = "notion-management-ai"
 
 $SchedulerSchedule = "0 0 6 * * *"
 $SchedulerTimeZone = "UTC"
@@ -82,6 +84,8 @@ Require-ConfigValue "ResourceGroupName" $ResourceGroupName
 Require-ConfigValue "Location" $Location
 Require-ConfigValue "FunctionAppName" $FunctionAppName
 Require-ConfigValue "StorageAccountName" $StorageAccountName
+Require-ConfigValue "LogAnalyticsWorkspaceName" $LogAnalyticsWorkspaceName
+Require-ConfigValue "ApplicationInsightsName" $ApplicationInsightsName
 Require-ConfigValue "NotionDataSourceId" $NotionDataSourceId
 Require-ConfigValue "NotionTodayViewId" $NotionTodayViewId
 Require-ConfigValue "NotionTodayViewName" $NotionTodayViewName
@@ -133,6 +137,54 @@ else {
     Write-Host "Storage account '$StorageAccountName' already exists in resource group '$ResourceGroupName'. Reusing it."
 }
 
+
+Write-Host "Creating Log Analytics workspace '$LogAnalyticsWorkspaceName' if needed..."
+$logAnalyticsWorkspaceId = az monitor log-analytics workspace show `
+    --resource-group $ResourceGroupName `
+    --workspace-name $LogAnalyticsWorkspaceName `
+    --query "id" `
+    --output tsv 2>$null
+
+if ([string]::IsNullOrWhiteSpace($logAnalyticsWorkspaceId)) {
+    $logAnalyticsWorkspaceId = az monitor log-analytics workspace create `
+        --resource-group $ResourceGroupName `
+        --workspace-name $LogAnalyticsWorkspaceName `
+        --location $Location `
+        --sku PerGB2018 `
+        --retention-time 30 `
+        --query "id" `
+        --output tsv
+}
+else {
+    Write-Host "Log Analytics workspace '$LogAnalyticsWorkspaceName' already exists. Reusing it."
+}
+
+Write-Host "Creating Application Insights '$ApplicationInsightsName' if needed..."
+$applicationInsightsConnectionString = az monitor app-insights component show `
+    --app $ApplicationInsightsName `
+    --resource-group $ResourceGroupName `
+    --query "connectionString" `
+    --output tsv 2>$null
+
+if ([string]::IsNullOrWhiteSpace($applicationInsightsConnectionString)) {
+    az monitor app-insights component create `
+        --app $ApplicationInsightsName `
+        --resource-group $ResourceGroupName `
+        --location $Location `
+        --kind web `
+        --application-type web `
+        --workspace $logAnalyticsWorkspaceId `
+        --output none
+
+    $applicationInsightsConnectionString = az monitor app-insights component show `
+        --app $ApplicationInsightsName `
+        --resource-group $ResourceGroupName `
+        --query "connectionString" `
+        --output tsv
+}
+else {
+    Write-Host "Application Insights '$ApplicationInsightsName' already exists. Reusing it."
+}
 Write-Host "Creating Function App '$FunctionAppName' if needed..."
 $functionAppId = az functionapp show `
     --name $FunctionAppName `
@@ -170,6 +222,7 @@ az functionapp config appsettings set `
         "FUNCTIONS_WORKER_RUNTIME=$Runtime" `
         "FUNCTIONS_EXTENSION_VERSION=~$FunctionsVersion" `
         "WEBSITE_TIME_ZONE=$FunctionAppTimeZone" `
+        "APPLICATIONINSIGHTS_CONNECTION_STRING=$applicationInsightsConnectionString" `
         "Scheduler__Schedule=$SchedulerSchedule" `
         "Scheduler__TimeZone=$SchedulerTimeZone" `
         "Tasks__FilePath=$TasksFilePath" `
