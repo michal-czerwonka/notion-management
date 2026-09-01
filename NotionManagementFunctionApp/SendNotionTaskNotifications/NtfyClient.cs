@@ -26,6 +26,7 @@ public sealed class NtfyClient
 
         request.Headers.Add("Title", "Zadania na dzisiaj");
         request.Headers.Add("Tags", "white_check_mark");
+        request.Headers.Add("Markdown", "yes");
 
         using var response = await HttpClient.SendAsync(request, cancellationToken);
         var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);

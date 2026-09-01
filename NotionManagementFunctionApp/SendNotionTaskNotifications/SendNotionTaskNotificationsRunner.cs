@@ -50,10 +50,22 @@ public sealed class SendNotionTaskNotificationsRunner
 
         foreach (var task in tasks)
         {
-            lines.Add($"• {task.Name}");
-            lines.Add($"  Status: {task.Status}");
+            lines.Add($"• **{EscapeMarkdown(task.Name)}**");
+            lines.Add($"  Status: {EscapeMarkdown(task.Status)}");
+            lines.Add("");
         }
 
         return string.Join(Environment.NewLine, lines);
+    }
+
+    private static string EscapeMarkdown(string value)
+    {
+        return value
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("*", "\\*", StringComparison.Ordinal)
+            .Replace("_", "\\_", StringComparison.Ordinal)
+            .Replace("`", "\\`", StringComparison.Ordinal)
+            .Replace("[", "\\[", StringComparison.Ordinal)
+            .Replace("]", "\\]", StringComparison.Ordinal);
     }
 }
