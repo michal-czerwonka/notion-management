@@ -22,6 +22,7 @@ $SchedulerTimeZone = "UTC"
 $TasksFilePath = "CreateNotionTasks/tasks.json"
 $NotificationsSchedule = "0 0 12 * * *"
 $NotionDataSourceId = "34c8bc09-19d3-80b2-9e8c-000b798e750e"
+$NotionTodayViewId = "34e8bc0919d380c595f1000c54fb8ad5"
 $NotionTodayViewName = "Na dzisiaj"
 $NtfyBaseUrl = "https://ntfy.sh"
 $NtfyTopic = "CHPqQe5yp12AJiv1" # Fill with your private, hard-to-guess ntfy topic name.
@@ -81,6 +82,7 @@ Require-ConfigValue "Location" $Location
 Require-ConfigValue "FunctionAppName" $FunctionAppName
 Require-ConfigValue "StorageAccountName" $StorageAccountName
 Require-ConfigValue "NotionDataSourceId" $NotionDataSourceId
+Require-ConfigValue "NotionTodayViewId" $NotionTodayViewId
 Require-ConfigValue "NotionTodayViewName" $NotionTodayViewName
 Require-ConfigValue "NtfyBaseUrl" $NtfyBaseUrl
 Require-ConfigValue "NtfyTopic" $NtfyTopic
@@ -170,6 +172,7 @@ az functionapp config appsettings set `
         "Tasks__FilePath=$TasksFilePath" `
         "Notifications__Schedule=$NotificationsSchedule" `
         "Notion__DataSourceId=$NotionDataSourceId" `
+        "Notion__TodayViewId=$NotionTodayViewId" `
         "Notion__TodayViewName=$NotionTodayViewName" `
         "Notion__Token=$NotionToken" `
         "Ntfy__BaseUrl=$NtfyBaseUrl" `
@@ -190,4 +193,5 @@ finally {
 
 Write-Host "Deployment finished."
 Write-Host "Manual create endpoint: https://$FunctionAppName.azurewebsites.net/api/run"
-Write-Host "Get the x-functions-key from Azure Portal: Function App -> Functions -> CreateNotionTasksFunctionHttp -> Function Keys."
+Write-Host "Manual notifications endpoint: https://$FunctionAppName.azurewebsites.net/api/notifications/run"
+Write-Host "Get the x-functions-key from Azure Portal: Function App -> Functions -> selected HTTP function -> Function Keys."

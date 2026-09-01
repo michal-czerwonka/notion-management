@@ -14,6 +14,7 @@ public sealed class NotionTodayTasksClient
     private readonly HttpClient _httpClient;
     private readonly string _token;
     private readonly string _dataSourceId;
+    private readonly string _viewId;
     private readonly string _viewName;
     private readonly ILogger<NotionTodayTasksClient> _logger;
 
@@ -28,6 +29,7 @@ public sealed class NotionTodayTasksClient
 
         _token = configuration["Notion:Token"] ?? "";
         _dataSourceId = configuration["Notion:DataSourceId"] ?? "";
+        _viewId = configuration["Notion:TodayViewId"] ?? "";
         _viewName = configuration["Notion:TodayViewName"] ?? "Na dzisiaj";
         _logger = logger;
     }
@@ -36,10 +38,17 @@ public sealed class NotionTodayTasksClient
     {
         EnsureConfigured();
 
+        if (!string.IsNullOrWhiteSpace(_viewId))
+        {
+            _logger.LogInformation("Querying configured Notion today view id '{ViewId}'.", _viewId);
+            return await QueryViewTasksAsync(_viewId, cancellationToken);
+        }
+
         var view = await FindViewByNameAsync(cancellationToken)
             ?? throw new InvalidOperationException($"Notion view '{_viewName}' was not found for configured data source.");
 
-        return await QueryViewAsync(view.Id, cancellationToken);
+        _logger.LogInformation("Found Notion today view '{ViewName}' with id '{ViewId}'.", view.Name, view.Id);
+        return await QueryViewTasksAsync(view.Id, cancellationToken);
     }
 
     private async Task<NotionViewReference?> FindViewByNameAsync(CancellationToken cancellationToken)
@@ -48,8 +57,8 @@ public sealed class NotionTodayTasksClient
 
         foreach (var viewId in viewIds)
         {
-            var view = await RetrieveViewAsync(viewId, cancellationToken);
-            if (string.Equals(view.Name, _viewName, StringComparison.Ordinal))
+            var view = await TryRetrieveViewForNameSearchAsync(viewId, cancellationToken);
+            if (view is not null && string.Equals(view.Name, _viewName, StringComparison.Ordinal))
             {
                 return view;
             }
@@ -95,12 +104,22 @@ public sealed class NotionTodayTasksClient
         return viewIds;
     }
 
-    private async Task<NotionViewReference> RetrieveViewAsync(string viewId, CancellationToken cancellationToken)
+    private async Task<NotionViewReference?> TryRetrieveViewForNameSearchAsync(string viewId, CancellationToken cancellationToken)
     {
         using var request = CreateRequest(HttpMethod.Get, $"views/{Uri.EscapeDataString(viewId)}");
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
-        EnsureSuccess(response, responseBody, "retrieve Notion view");
+
+        if (!response.IsSuccessStatusCode)
+        {
+            if (IsUnsupportedViewReference(response, responseBody))
+            {
+                _logger.LogDebug("Skipping unsupported Notion view reference '{ViewId}' while searching for view '{ViewName}'.", viewId, _viewName);
+                return null;
+            }
+
+            EnsureSuccess(response, responseBody, "retrieve Notion view");
+        }
 
         using var document = JsonDocument.Parse(responseBody);
         var root = document.RootElement;
@@ -110,13 +129,27 @@ public sealed class NotionTodayTasksClient
             GetString(root, "name") ?? "");
     }
 
-    private async Task<IReadOnlyList<NotionTodayTask>> QueryViewAsync(string viewId, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<NotionTodayTask>> QueryViewTasksAsync(string viewId, CancellationToken cancellationToken)
+    {
+        var pageIds = await QueryViewPageIdsAsync(viewId, cancellationToken);
+        var tasks = new List<NotionTodayTask>(pageIds.Count);
+
+        foreach (var pageId in pageIds)
+        {
+            tasks.Add(await RetrieveTaskDetailsAsync(pageId, cancellationToken));
+        }
+
+        _logger.LogInformation("Retrieved {TaskCount} task detail(s) from Notion today view id '{ViewId}'.", tasks.Count, viewId);
+        return tasks;
+    }
+
+    private async Task<IReadOnlyList<string>> QueryViewPageIdsAsync(string viewId, CancellationToken cancellationToken)
     {
         string? queryId = null;
 
         try
         {
-            var tasks = new List<NotionTodayTask>();
+            var pageIds = new List<string>();
             string? startCursor = null;
 
             do
@@ -133,13 +166,14 @@ public sealed class NotionTodayTasksClient
                 var root = document.RootElement;
 
                 queryId ??= GetString(root, "id") ?? throw new InvalidOperationException("Notion view query response did not include query id.");
-                AddTasksFromQueryResponse(root, tasks);
+                AddPageIdsFromQueryResponse(root, pageIds);
 
                 startCursor = GetBool(root, "has_more") ? GetString(root, "next_cursor") : null;
             }
             while (!string.IsNullOrWhiteSpace(startCursor));
 
-            return tasks;
+            _logger.LogInformation("Retrieved {PageCount} page id(s) from Notion today view id '{ViewId}'.", pageIds.Count, viewId);
+            return pageIds;
         }
         finally
         {
@@ -155,6 +189,25 @@ public sealed class NotionTodayTasksClient
                 }
             }
         }
+    }
+
+    private async Task<NotionTodayTask> RetrieveTaskDetailsAsync(string pageId, CancellationToken cancellationToken)
+    {
+        using var request = CreateRequest(HttpMethod.Get, $"pages/{Uri.EscapeDataString(pageId)}");
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+        EnsureSuccess(response, responseBody, "retrieve Notion page details");
+
+        using var document = JsonDocument.Parse(responseBody);
+        var root = document.RootElement;
+
+        var name = ReadTitle(root, TitlePropertyName);
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            name = "(bez nazwy)";
+        }
+
+        return new NotionTodayTask(pageId, name, GetString(root, "url"));
     }
 
     private HttpRequestMessage CreateViewQueryRequest(string viewId)
@@ -180,23 +233,15 @@ public sealed class NotionTodayTasksClient
         EnsureSuccess(response, responseBody, "delete Notion view query");
     }
 
-    private static void AddTasksFromQueryResponse(JsonElement root, List<NotionTodayTask> tasks)
+    private static void AddPageIdsFromQueryResponse(JsonElement root, List<string> pageIds)
     {
         foreach (var result in root.GetProperty("results").EnumerateArray())
         {
             var pageId = GetString(result, "id");
-            if (string.IsNullOrWhiteSpace(pageId))
+            if (!string.IsNullOrWhiteSpace(pageId))
             {
-                continue;
+                pageIds.Add(pageId);
             }
-
-            var name = ReadTitle(result, TitlePropertyName);
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                name = "(bez nazwy)";
-            }
-
-            tasks.Add(new NotionTodayTask(pageId, name, GetString(result, "url")));
         }
     }
 
@@ -237,6 +282,11 @@ public sealed class NotionTodayTasksClient
             throw new InvalidOperationException("Missing Notion:Token configuration.");
         }
 
+        if (!string.IsNullOrWhiteSpace(_viewId))
+        {
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(_dataSourceId))
         {
             throw new InvalidOperationException("Missing Notion:DataSourceId configuration.");
@@ -261,6 +311,12 @@ public sealed class NotionTodayTasksClient
         {
             throw new InvalidOperationException($"Failed to {operation}. Notion API returned {(int)response.StatusCode} {response.ReasonPhrase}: {responseBody}");
         }
+    }
+
+    private static bool IsUnsupportedViewReference(HttpResponseMessage response, string responseBody)
+    {
+        return (int)response.StatusCode == 400 &&
+            responseBody.Contains("Unsupported view type", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? GetString(JsonElement element, string propertyName)

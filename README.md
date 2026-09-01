@@ -85,7 +85,7 @@ The script creates or reuses the resource group, storage account, and Windows Co
 
 `SendNotionTaskNotificationsFunction` runs on `Notifications:Schedule`. The default deployment setting is `0 0 12 * * *`, so notifications are sent daily at 12:00 UTC.
 
-Notion is the source of truth. The function lists views for `Notion:DataSourceId`, finds the view named by `Notion:TodayViewName`, queries that view, and sends one summary notification. It does not reimplement due-date, overdue, status, or completion rules in C#.
+Notion is the source of truth. The function queries the configured view id from `Notion:TodayViewId` and sends one summary notification. If `Notion:TodayViewId` is empty, it falls back to listing views for `Notion:DataSourceId` and finding the view named by `Notion:TodayViewName`. It does not reimplement due-date, overdue, status, or completion rules in C#.
 
 If the Notion view contains no tasks, no notification is sent.
 
@@ -100,7 +100,8 @@ The endpoint uses `AuthorizationLevel.Function`, so in Azure call it with `x-fun
 Required settings:
 
 - `Notifications:Schedule` / `Notifications__Schedule` - timer schedule for notifications.
-- `Notion:TodayViewName` / `Notion__TodayViewName` - defaults to `Na dzisiaj`.
+- `Notion:TodayViewId` / `Notion__TodayViewId` - Notion view id for `Na dzisiaj`; preferred over name-based lookup.
+- `Notion:TodayViewName` / `Notion__TodayViewName` - fallback view name; defaults to `Na dzisiaj`.
 - `Ntfy:BaseUrl` / `Ntfy__BaseUrl` - defaults to `https://ntfy.sh`.
 - `Ntfy:Topic` / `Ntfy__Topic` - your ntfy topic.
 
@@ -114,6 +115,7 @@ Required settings:
 
 ```json
 "Notifications:Schedule": "0 0 12 * * *",
+"Notion:TodayViewId": "34e8bc0919d380c595f1000c54fb8ad5",
 "Notion:TodayViewName": "Na dzisiaj",
 "Ntfy:BaseUrl": "https://ntfy.sh",
 "Ntfy:Topic": "your-private-topic"
@@ -123,6 +125,7 @@ Required settings:
 
 ```text
 Notifications__Schedule = 0 0 12 * * *
+Notion__TodayViewId = 34e8bc0919d380c595f1000c54fb8ad5
 Notion__TodayViewName = Na dzisiaj
 Ntfy__BaseUrl = https://ntfy.sh
 Ntfy__Topic = your-private-topic
