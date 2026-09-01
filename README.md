@@ -97,6 +97,8 @@ APPLICATIONINSIGHTS_CONNECTION_STRING = <read from Azure during deployment>
 
 The Function App sends application logs directly from the isolated worker to Application Insights. The configuration keeps `ILogger` information logs and exceptions, while filtering dependency and request telemetry emitted by the worker. Host-level dependency tracking and performance counter collection are disabled in `host.json` to keep telemetry volume low.
 
+Handled exceptions in manual HTTP triggers are explicitly sent with `TelemetryClient.TrackException`, so they appear as real records in the `exceptions` table instead of only as failed requests or gRPC worker traces.
+
 Useful KQL queries in Application Insights Logs:
 
 ```kusto
@@ -107,6 +109,13 @@ traces
 
 ```kusto
 exceptions
+| order by timestamp desc
+| take 50
+```
+
+```kusto
+exceptions
+| where customDimensions["FunctionName"] in ("CreateNotionTasksFunctionHttp", "SendNotionTaskNotificationsFunctionHttp")
 | order by timestamp desc
 | take 50
 ```

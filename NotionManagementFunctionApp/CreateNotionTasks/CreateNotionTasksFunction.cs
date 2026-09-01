@@ -1,3 +1,4 @@
+using Microsoft.ApplicationInsights;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -13,15 +14,18 @@ public sealed class CreateNotionTasksFunction
 
     private readonly SchedulerClock _clock;
     private readonly CreateNotionTasksRunner _runner;
+    private readonly TelemetryClient _telemetryClient;
     private readonly ILogger<CreateNotionTasksFunction> _logger;
 
     public CreateNotionTasksFunction(
         SchedulerClock clock,
         CreateNotionTasksRunner runner,
+        TelemetryClient telemetryClient,
         ILogger<CreateNotionTasksFunction> logger)
     {
         _clock = clock;
         _runner = runner;
+        _telemetryClient = telemetryClient;
         _logger = logger;
     }
 
@@ -56,6 +60,11 @@ public sealed class CreateNotionTasksFunction
         catch (Exception ex)
         {
             _logger.LogError(ex, "Manual Notion task run failed before per-task processing could complete.");
+            _telemetryClient.TrackException(ex, new Dictionary<string, string>
+            {
+                ["FunctionName"] = "CreateNotionTasksFunctionHttp",
+                ["Trigger"] = "Http"
+            });
 
             return await WriteJsonAsync(
                 request,
