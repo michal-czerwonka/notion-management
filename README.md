@@ -89,6 +89,14 @@ Notion is the source of truth. The function lists views for `Notion:DataSourceId
 
 If the Notion view contains no tasks, no notification is sent.
 
+Manual notification test endpoint:
+
+```http
+POST /api/notifications/run
+```
+
+The endpoint uses `AuthorizationLevel.Function`, so in Azure call it with `x-functions-key`.
+
 Required settings:
 
 - `Notifications:Schedule` / `Notifications__Schedule` - timer schedule for notifications.

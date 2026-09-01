@@ -18,7 +18,7 @@ public sealed class SendNotionTaskNotificationsRunner
         _logger = logger;
     }
 
-    public async Task RunAsync(CancellationToken cancellationToken)
+    public async Task<SendNotionTaskNotificationsResult> RunAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("Starting Notion task notification run.");
 
@@ -26,7 +26,7 @@ public sealed class SendNotionTaskNotificationsRunner
         if (tasks.Count == 0)
         {
             _logger.LogInformation("Notion view contains no tasks. Notification will not be sent.");
-            return;
+            return new SendNotionTaskNotificationsResult(TaskCount: 0, NotificationSent: false, NtfyMessageId: null);
         }
 
         var message = FormatNotification(tasks);
@@ -37,6 +37,8 @@ public sealed class SendNotionTaskNotificationsRunner
             tasks.Count,
             result.MessageId,
             result.TopicConfigured);
+
+        return new SendNotionTaskNotificationsResult(tasks.Count, NotificationSent: true, result.MessageId);
     }
 
     private static string FormatNotification(IReadOnlyList<NotionTodayTask> tasks)
