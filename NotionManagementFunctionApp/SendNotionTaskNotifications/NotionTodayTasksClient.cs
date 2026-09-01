@@ -10,6 +10,7 @@ public sealed class NotionTodayTasksClient
 {
     private const string NotionVersion = "2026-03-11";
     private const string TitlePropertyName = "Nazwa";
+    private const string StatusPropertyName = "Status";
 
     private readonly HttpClient _httpClient;
     private readonly string _token;
@@ -207,7 +208,9 @@ public sealed class NotionTodayTasksClient
             name = "(bez nazwy)";
         }
 
-        return new NotionTodayTask(pageId, name, GetString(root, "url"));
+        var status = ReadStatus(root, StatusPropertyName) ?? "(bez statusu)";
+
+        return new NotionTodayTask(pageId, name, status, GetString(root, "url"));
     }
 
     private HttpRequestMessage CreateViewQueryRequest(string viewId)
@@ -260,6 +263,19 @@ public sealed class NotionTodayTasksClient
             .Where(part => !string.IsNullOrWhiteSpace(part));
 
         return string.Join("", parts);
+    }
+
+    private static string? ReadStatus(JsonElement page, string propertyName)
+    {
+        if (!page.TryGetProperty("properties", out var properties) ||
+            !properties.TryGetProperty(propertyName, out var statusProperty) ||
+            !statusProperty.TryGetProperty("status", out var status) ||
+            status.ValueKind == JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        return GetString(status, "name");
     }
 
     private HttpRequestMessage CreateRequest(HttpMethod method, string uri, object? body = null)

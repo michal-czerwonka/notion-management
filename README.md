@@ -6,7 +6,7 @@ Current projects:
 
 - `NotionManagementFunctionApp` - Azure Functions 4 app using the C# isolated worker model on .NET 10.
 
-The timer is configured through `Scheduler:Schedule`. The sample value runs every day at 08:00 UTC:
+Timers are evaluated in the Function App timezone configured by `WEBSITE_TIME_ZONE`. For this project, Azure uses `Central European Standard Time`, which corresponds to Europe/Warsaw. The task creation timer is configured through `Scheduler:Schedule`:
 
 ```json
 "Scheduler:Schedule": "0 0 8 * * *"
@@ -54,7 +54,7 @@ Required settings:
 - `Notion:Token` - Notion integration token, read through `IConfiguration`.
 - `Notion:DataSourceId` - target Notion data source id for the `Zadania` database.
 - `Scheduler:Schedule` - NCRONTAB expression for the timer trigger.
-- `Scheduler:TimeZone` - timezone used for selecting "today"; currently `UTC`.
+- `Scheduler:TimeZone` - timezone used by task creation code for selecting "today"; currently `UTC`. Timer schedules themselves use `WEBSITE_TIME_ZONE`.
 - `Tasks:FilePath` - task definition file path; defaults to `CreateNotionTasks/tasks.json`.
 
 For Azure app settings, use the equivalent environment variable names, for example `Notion__Token` and `Notion__DataSourceId`.
@@ -83,11 +83,11 @@ $env:NOTION_TOKEN = "secret_xxx"
 The script creates or reuses the resource group, storage account, and Windows Consumption Function App, configures app settings, builds the solution, and publishes the function app.
 ## Notion Task Notifications
 
-`SendNotionTaskNotificationsFunction` runs on `Notifications:Schedule`. The default deployment setting is `0 0 12 * * *`, so notifications are sent daily at 12:00 UTC.
+`SendNotionTaskNotificationsFunction` runs on `Notifications:Schedule`. The default deployment setting is `0 0 15,23 * * *`, so notifications are sent daily at 15:00 and 23:00 Europe/Warsaw time.
 
 Notion is the source of truth. The function queries the configured view id from `Notion:TodayViewId` and sends one summary notification. If `Notion:TodayViewId` is empty, it falls back to listing views for `Notion:DataSourceId` and finding the view named by `Notion:TodayViewName`. It does not reimplement due-date, overdue, status, or completion rules in C#.
 
-If the Notion view contains no tasks, no notification is sent.
+If the Notion view contains no tasks at a scheduled notification time, the function sends `brak zadań, trzeba uzupełnić Notion`.
 
 Manual notification test endpoint:
 
@@ -99,9 +99,10 @@ The endpoint uses `AuthorizationLevel.Function`, so in Azure call it with `x-fun
 
 Required settings:
 
-- `Notifications:Schedule` / `Notifications__Schedule` - timer schedule for notifications.
+- `Notifications:Schedule` / `Notifications__Schedule` - timer schedule for notifications; defaults to `0 0 15,23 * * *`.
 - `Notion:TodayViewId` / `Notion__TodayViewId` - Notion view id for `Na dzisiaj`; preferred over name-based lookup.
 - `Notion:TodayViewName` / `Notion__TodayViewName` - fallback view name; defaults to `Na dzisiaj`.
+- `WEBSITE_TIME_ZONE` - `Central European Standard Time` in Azure, matching Europe/Warsaw for Windows Function Apps.
 - `Ntfy:BaseUrl` / `Ntfy__BaseUrl` - defaults to `https://ntfy.sh`.
 - `Ntfy:Topic` / `Ntfy__Topic` - your ntfy topic.
 
@@ -114,21 +115,23 @@ Required settings:
 5. Locally, set these values in `local.settings.json`:
 
 ```json
-"Notifications:Schedule": "0 0 12 * * *",
+"Notifications:Schedule": "0 0 15,23 * * *",
 "Notion:TodayViewId": "34e8bc0919d380c595f1000c54fb8ad5",
 "Notion:TodayViewName": "Na dzisiaj",
 "Ntfy:BaseUrl": "https://ntfy.sh",
-"Ntfy:Topic": "your-private-topic"
+"Ntfy:Topic": "your-private-topic",
+"WEBSITE_TIME_ZONE": "Central European Standard Time"
 ```
 
 6. In Azure Function App Settings, set:
 
 ```text
-Notifications__Schedule = 0 0 12 * * *
+Notifications__Schedule = 0 0 15,23 * * *
 Notion__TodayViewId = 34e8bc0919d380c595f1000c54fb8ad5
 Notion__TodayViewName = Na dzisiaj
 Ntfy__BaseUrl = https://ntfy.sh
 Ntfy__Topic = your-private-topic
+WEBSITE_TIME_ZONE = Central European Standard Time
 ```
 
 7. To test ntfy manually before using the Function App:

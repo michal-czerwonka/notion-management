@@ -20,7 +20,8 @@ $StorageAccountName = "notionmanagementrgb0f3" # Must be globally unique, 3-24 c
 $SchedulerSchedule = "0 0 6 * * *"
 $SchedulerTimeZone = "UTC"
 $TasksFilePath = "CreateNotionTasks/tasks.json"
-$NotificationsSchedule = "0 0 12 * * *"
+$NotificationsSchedule = "0 0 15,23 * * *"
+$FunctionAppTimeZone = "Central European Standard Time" # Europe/Warsaw for Windows Function Apps.
 $NotionDataSourceId = "34c8bc09-19d3-80b2-9e8c-000b798e750e"
 $NotionTodayViewId = "34e8bc0919d380c595f1000c54fb8ad5"
 $NotionTodayViewName = "Na dzisiaj"
@@ -86,6 +87,7 @@ Require-ConfigValue "NotionTodayViewId" $NotionTodayViewId
 Require-ConfigValue "NotionTodayViewName" $NotionTodayViewName
 Require-ConfigValue "NtfyBaseUrl" $NtfyBaseUrl
 Require-ConfigValue "NtfyTopic" $NtfyTopic
+Require-ConfigValue "FunctionAppTimeZone" $FunctionAppTimeZone
 
 if ([string]::IsNullOrWhiteSpace($NotionToken)) {
     $secureToken = Read-Host "Enter Notion token" -AsSecureString
@@ -167,6 +169,7 @@ az functionapp config appsettings set `
     --settings `
         "FUNCTIONS_WORKER_RUNTIME=$Runtime" `
         "FUNCTIONS_EXTENSION_VERSION=~$FunctionsVersion" `
+        "WEBSITE_TIME_ZONE=$FunctionAppTimeZone" `
         "Scheduler__Schedule=$SchedulerSchedule" `
         "Scheduler__TimeZone=$SchedulerTimeZone" `
         "Tasks__FilePath=$TasksFilePath" `

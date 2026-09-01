@@ -23,12 +23,6 @@ public sealed class SendNotionTaskNotificationsRunner
         _logger.LogInformation("Starting Notion task notification run.");
 
         var tasks = await _notionTodayTasksClient.GetTodayViewTasksAsync(cancellationToken);
-        if (tasks.Count == 0)
-        {
-            _logger.LogInformation("Notion view contains no tasks. Notification will not be sent.");
-            return new SendNotionTaskNotificationsResult(TaskCount: 0, NotificationSent: false, NtfyMessageId: null);
-        }
-
         var message = FormatNotification(tasks);
         var result = await _ntfyClient.SendAsync(message, cancellationToken);
 
@@ -43,13 +37,22 @@ public sealed class SendNotionTaskNotificationsRunner
 
     private static string FormatNotification(IReadOnlyList<NotionTodayTask> tasks)
     {
+        if (tasks.Count == 0)
+        {
+            return "brak zadań, trzeba uzupełnić Notion";
+        }
+
         var lines = new List<string>
         {
             $"Zadania na dzisiaj: {tasks.Count}",
             ""
         };
 
-        lines.AddRange(tasks.Select(task => $"• {task.Name}"));
+        foreach (var task in tasks)
+        {
+            lines.Add($"• {task.Name}");
+            lines.Add($"  Status: {task.Status}");
+        }
 
         return string.Join(Environment.NewLine, lines);
     }
