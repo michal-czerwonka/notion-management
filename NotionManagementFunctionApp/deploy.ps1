@@ -68,6 +68,24 @@ function Convert-SecureStringToPlainText {
     }
 }
 
+function Invoke-AzCli {
+    param(
+        [Parameter(Mandatory = $true)][string]$Step,
+        [Parameter(Mandatory = $true)][string[]]$Arguments
+    )
+
+    Write-Host "[$(Get-Date -Format 'HH:mm:ss')] $Step..."
+    $output = & az @Arguments
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Azure CLI step failed: $Step"
+    }
+
+    Write-Host "[$(Get-Date -Format 'HH:mm:ss')] $Step finished."
+
+    return $output
+}
+
 Require-Command "az"
 Require-Command "func"
 Require-Command "dotnet"
@@ -90,67 +108,92 @@ if ([string]::IsNullOrWhiteSpace($NotionToken)) {
 Require-ConfigValue "NotionToken" $NotionToken
 
 if (-not $SkipAzLogin) {
+    Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Starting Azure login..."
     az login
+    if ($LASTEXITCODE -ne 0) {
+        throw "Azure login failed."
+    }
+    Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Azure login finished."
 }
 
 if (-not [string]::IsNullOrWhiteSpace($SubscriptionId)) {
-    az account set --subscription $SubscriptionId
+    Invoke-AzCli `
+        -Step "Selecting Azure subscription" `
+        -Arguments @("account", "set", "--subscription", $SubscriptionId)
 }
 
-Write-Host "Checking existing Function App '$FunctionAppName'..."
-$functionAppId = az functionapp show `
-    --name $FunctionAppName `
-    --resource-group $ResourceGroupName `
-    --query "id" `
-    --output tsv 2>$null
+$functionAppId = Invoke-AzCli `
+    -Step "Checking existing Function App '$FunctionAppName'" `
+    -Arguments @(
+        "functionapp", "show",
+        "--name", $FunctionAppName,
+        "--resource-group", $ResourceGroupName,
+        "--query", "id",
+        "--output", "tsv"
+    )
 
 if ([string]::IsNullOrWhiteSpace($functionAppId)) {
     throw "Function App '$FunctionAppName' was not found in resource group '$ResourceGroupName'. Create it manually before running this script."
 }
 
-Write-Host "Checking existing Application Insights '$ApplicationInsightsName'..."
-$applicationInsightsConnectionString = az monitor app-insights component show `
-    --app $ApplicationInsightsName `
-    --resource-group $ResourceGroupName `
-    --query "connectionString" `
-    --output tsv 2>$null
+$applicationInsightsConnectionString = Invoke-AzCli `
+    -Step "Reading existing Application Insights '$ApplicationInsightsName' connection string" `
+    -Arguments @(
+        "resource", "show",
+        "--name", $ApplicationInsightsName,
+        "--resource-group", $ResourceGroupName,
+        "--resource-type", "Microsoft.Insights/components",
+        "--query", "properties.ConnectionString",
+        "--output", "tsv"
+    )
 
 if ([string]::IsNullOrWhiteSpace($applicationInsightsConnectionString)) {
     throw "Application Insights '$ApplicationInsightsName' was not found in resource group '$ResourceGroupName' or does not expose a connection string. Create it manually before running this script."
 }
 
-Write-Host "Configuring Function App runtime and application settings..."
-az functionapp config appsettings set `
-    --name $FunctionAppName `
-    --resource-group $ResourceGroupName `
-    --settings `
-        "FUNCTIONS_WORKER_RUNTIME=$Runtime" `
-        "FUNCTIONS_EXTENSION_VERSION=~$FunctionsVersion" `
-        "WEBSITE_TIME_ZONE=$FunctionAppTimeZone" `
-        "APPLICATIONINSIGHTS_CONNECTION_STRING=$applicationInsightsConnectionString" `
-        "Scheduler__Schedule=$SchedulerSchedule" `
-        "Scheduler__TimeZone=$SchedulerTimeZone" `
-        "Tasks__FilePath=$TasksFilePath" `
-        "Notifications__Schedule=$NotificationsSchedule" `
-        "Notion__DataSourceId=$NotionDataSourceId" `
-        "Notion__TodayViewId=$NotionTodayViewId" `
-        "Notion__TodayViewName=$NotionTodayViewName" `
-        "Notion__Token=$NotionToken" `
-        "Ntfy__BaseUrl=$NtfyBaseUrl" `
-        "Ntfy__Topic=$NtfyTopic" `
-    --output none
+Invoke-AzCli `
+    -Step "Configuring Function App application settings" `
+    -Arguments @(
+        "functionapp", "config", "appsettings", "set",
+        "--name", $FunctionAppName,
+        "--resource-group", $ResourceGroupName,
+        "--settings",
+        "FUNCTIONS_WORKER_RUNTIME=$Runtime",
+        "FUNCTIONS_EXTENSION_VERSION=~$FunctionsVersion",
+        "WEBSITE_TIME_ZONE=$FunctionAppTimeZone",
+        "APPLICATIONINSIGHTS_CONNECTION_STRING=$applicationInsightsConnectionString",
+        "Scheduler__Schedule=$SchedulerSchedule",
+        "Scheduler__TimeZone=$SchedulerTimeZone",
+        "Tasks__FilePath=$TasksFilePath",
+        "Notifications__Schedule=$NotificationsSchedule",
+        "Notion__DataSourceId=$NotionDataSourceId",
+        "Notion__TodayViewId=$NotionTodayViewId",
+        "Notion__TodayViewName=$NotionTodayViewName",
+        "Notion__Token=$NotionToken",
+        "Ntfy__BaseUrl=$NtfyBaseUrl",
+        "Ntfy__Topic=$NtfyTopic",
+        "--output", "none"
+    )
 
-Write-Host "Building solution..."
+Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Building solution..."
 dotnet build (Join-Path $PSScriptRoot "..\NotionManagement.sln") --configuration Release
+if ($LASTEXITCODE -ne 0) {
+    throw "Build failed."
+}
+Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Build finished."
 
-Write-Host "Publishing Function App..."
+Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Publishing Function App..."
 Push-Location $ProjectPath
 try {
     func azure functionapp publish $FunctionAppName --dotnet-isolated
+    if ($LASTEXITCODE -ne 0) {
+        throw "Function App publish failed."
+    }
 }
 finally {
     Pop-Location
 }
+Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Publish finished."
 
 Write-Host "Deployment finished."
 Write-Host "Manual create endpoint: https://$FunctionAppName.azurewebsites.net/api/run"

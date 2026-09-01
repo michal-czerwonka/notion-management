@@ -71,7 +71,7 @@ Created tasks set these Notion properties:
 
 ## Deployment
 
-Use `NotionManagementFunctionApp/deploy.ps1` from the function app directory. Fill the configuration section first, especially `SubscriptionId`, `ResourceGroupName`, `FunctionAppName`, and `ApplicationInsightsName`.
+Use `NotionManagementFunctionApp/deploy.ps1` from the function app directory. Fill the configuration section first, especially `SubscriptionId`, `ResourceGroupName`, and `FunctionAppName`.
 
 Do not write the Notion token into the script. Set it for the current PowerShell session:
 
@@ -80,7 +80,7 @@ $env:NOTION_TOKEN = "secret_xxx"
 .\deploy.ps1
 ```
 
-The script does not create Azure infrastructure. The resource group, storage account, Function App, Log Analytics workspace, and Application Insights resource must already exist. The script checks the existing Function App and Application Insights resource, configures app settings, builds the solution, and publishes the function app.
+The script does not create Azure infrastructure. The resource group, storage account, Function App, Log Analytics workspace, and Application Insights resource must already exist. The script checks only the existing Function App, configures app settings, builds the solution, and publishes the function app.
 
 ## Application Insights
 
@@ -89,11 +89,13 @@ Azure resources are created manually. `deploy.ps1` expects these resources to al
 - Log Analytics workspace: `notion-management-law`.
 - Workspace-based Application Insights resource: `notion-management-ai`.
 
-The script reads the existing Application Insights connection string from Azure and stores it in the Function App setting:
+The script does not query Application Insights during deployment. Set the connection string manually in Azure Function App Settings, or provide it only when you want the script to update it:
 
-```text
-APPLICATIONINSIGHTS_CONNECTION_STRING = <read from Azure during deployment>
+```powershell
+$env:APPLICATIONINSIGHTS_CONNECTION_STRING = "InstrumentationKey=...;IngestionEndpoint=..."
 ```
+
+If `APPLICATIONINSIGHTS_CONNECTION_STRING` is not provided, `deploy.ps1` leaves the existing Azure app setting unchanged.
 
 The Function App sends application logs directly from the isolated worker to Application Insights. The configuration keeps `ILogger` information logs and exceptions, while filtering dependency and request telemetry emitted by the worker. Host-level dependency tracking and performance counter collection are disabled in `host.json` to keep telemetry volume low.
 
