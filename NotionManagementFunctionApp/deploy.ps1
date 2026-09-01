@@ -9,14 +9,12 @@ $ErrorActionPreference = "Stop"
 # Deployment configuration
 # -----------------------------------------------------------------------------
 # Fill these values before running the script. Do not commit real secrets.
+# Azure resources must already exist. This script does not create infrastructure.
 
 $SubscriptionId = "a9d08d80-c04e-4928-8071-a3a600542f1f" # Optional. Example: "00000000-0000-0000-0000-000000000000"
 $ResourceGroupName = "notion-management-rg"
-$Location = "westeurope"
 
-$FunctionAppName = "notion-management-func" # Must be globally unique under azurewebsites.net.
-$StorageAccountName = "notionmanagementrgb0f3" # Must be globally unique, 3-24 chars, lowercase letters and numbers only. Example: "notionmgmtst001"
-$LogAnalyticsWorkspaceName = "notion-management-law"
+$FunctionAppName = "notion-management-func"
 $ApplicationInsightsName = "notion-management-ai"
 
 $SchedulerSchedule = "0 0 6 * * *"
@@ -35,14 +33,8 @@ $NtfyTopic = "CHPqQe5yp12AJiv1" # Fill with your private, hard-to-guess ntfy top
 #   $env:NOTION_TOKEN = "secret_xxx"
 $NotionToken = $env:NOTION_TOKEN
 
-# Windows Consumption keeps costs low for this small private helper. If Azure CLI
-# rejects .NET 10 for Windows Consumption in your region/subscription, use Flex
-# Consumption as a follow-up deployment path.
 $Runtime = "dotnet-isolated"
-$RuntimeVersion = "10"
 $FunctionsVersion = "4"
-$OsType = "Windows"
-
 $ProjectPath = $PSScriptRoot
 
 function Require-Command {
@@ -81,10 +73,7 @@ Require-Command "func"
 Require-Command "dotnet"
 
 Require-ConfigValue "ResourceGroupName" $ResourceGroupName
-Require-ConfigValue "Location" $Location
 Require-ConfigValue "FunctionAppName" $FunctionAppName
-Require-ConfigValue "StorageAccountName" $StorageAccountName
-Require-ConfigValue "LogAnalyticsWorkspaceName" $LogAnalyticsWorkspaceName
 Require-ConfigValue "ApplicationInsightsName" $ApplicationInsightsName
 Require-ConfigValue "NotionDataSourceId" $NotionDataSourceId
 Require-ConfigValue "NotionTodayViewId" $NotionTodayViewId
@@ -108,84 +97,7 @@ if (-not [string]::IsNullOrWhiteSpace($SubscriptionId)) {
     az account set --subscription $SubscriptionId
 }
 
-Write-Host "Creating or updating resource group '$ResourceGroupName' in '$Location'..."
-az group create `
-    --name $ResourceGroupName `
-    --location $Location `
-    --output none
-
-Write-Host "Creating storage account '$StorageAccountName' if needed..."
-$storageAccountId = az storage account show `
-    --name $StorageAccountName `
-    --resource-group $ResourceGroupName `
-    --query "id" `
-    --output tsv 2>$null
-
-if ([string]::IsNullOrWhiteSpace($storageAccountId)) {
-    az storage account create `
-        --name $StorageAccountName `
-        --resource-group $ResourceGroupName `
-        --location $Location `
-        --sku Standard_LRS `
-        --kind StorageV2 `
-        --https-only true `
-        --min-tls-version TLS1_2 `
-        --allow-blob-public-access false `
-        --output none
-}
-else {
-    Write-Host "Storage account '$StorageAccountName' already exists in resource group '$ResourceGroupName'. Reusing it."
-}
-
-
-Write-Host "Creating Log Analytics workspace '$LogAnalyticsWorkspaceName' if needed..."
-$logAnalyticsWorkspaceId = az monitor log-analytics workspace show `
-    --resource-group $ResourceGroupName `
-    --workspace-name $LogAnalyticsWorkspaceName `
-    --query "id" `
-    --output tsv 2>$null
-
-if ([string]::IsNullOrWhiteSpace($logAnalyticsWorkspaceId)) {
-    $logAnalyticsWorkspaceId = az monitor log-analytics workspace create `
-        --resource-group $ResourceGroupName `
-        --workspace-name $LogAnalyticsWorkspaceName `
-        --location $Location `
-        --sku PerGB2018 `
-        --retention-time 30 `
-        --query "id" `
-        --output tsv
-}
-else {
-    Write-Host "Log Analytics workspace '$LogAnalyticsWorkspaceName' already exists. Reusing it."
-}
-
-Write-Host "Creating Application Insights '$ApplicationInsightsName' if needed..."
-$applicationInsightsConnectionString = az monitor app-insights component show `
-    --app $ApplicationInsightsName `
-    --resource-group $ResourceGroupName `
-    --query "connectionString" `
-    --output tsv 2>$null
-
-if ([string]::IsNullOrWhiteSpace($applicationInsightsConnectionString)) {
-    az monitor app-insights component create `
-        --app $ApplicationInsightsName `
-        --resource-group $ResourceGroupName `
-        --location $Location `
-        --kind web `
-        --application-type web `
-        --workspace $logAnalyticsWorkspaceId `
-        --output none
-
-    $applicationInsightsConnectionString = az monitor app-insights component show `
-        --app $ApplicationInsightsName `
-        --resource-group $ResourceGroupName `
-        --query "connectionString" `
-        --output tsv
-}
-else {
-    Write-Host "Application Insights '$ApplicationInsightsName' already exists. Reusing it."
-}
-Write-Host "Creating Function App '$FunctionAppName' if needed..."
+Write-Host "Checking existing Function App '$FunctionAppName'..."
 $functionAppId = az functionapp show `
     --name $FunctionAppName `
     --resource-group $ResourceGroupName `
@@ -193,28 +105,21 @@ $functionAppId = az functionapp show `
     --output tsv 2>$null
 
 if ([string]::IsNullOrWhiteSpace($functionAppId)) {
-    az functionapp create `
-        --name $FunctionAppName `
-        --resource-group $ResourceGroupName `
-        --consumption-plan-location $Location `
-        --storage-account $StorageAccountName `
-        --functions-version $FunctionsVersion `
-        --runtime $Runtime `
-        --runtime-version $RuntimeVersion `
-        --os-type $OsType `
-        --output none
+    throw "Function App '$FunctionAppName' was not found in resource group '$ResourceGroupName'. Create it manually before running this script."
 }
-else {
-    Write-Host "Function App '$FunctionAppName' already exists. Reusing it."
+
+Write-Host "Checking existing Application Insights '$ApplicationInsightsName'..."
+$applicationInsightsConnectionString = az monitor app-insights component show `
+    --app $ApplicationInsightsName `
+    --resource-group $ResourceGroupName `
+    --query "connectionString" `
+    --output tsv 2>$null
+
+if ([string]::IsNullOrWhiteSpace($applicationInsightsConnectionString)) {
+    throw "Application Insights '$ApplicationInsightsName' was not found in resource group '$ResourceGroupName' or does not expose a connection string. Create it manually before running this script."
 }
 
 Write-Host "Configuring Function App runtime and application settings..."
-az functionapp config set `
-    --name $FunctionAppName `
-    --resource-group $ResourceGroupName `
-    --net-framework-version "v10.0" `
-    --output none
-
 az functionapp config appsettings set `
     --name $FunctionAppName `
     --resource-group $ResourceGroupName `

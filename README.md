@@ -71,7 +71,7 @@ Created tasks set these Notion properties:
 
 ## Deployment
 
-Use `NotionManagementFunctionApp/deploy.ps1` from the function app directory. Fill the configuration section first, especially `SubscriptionId`, `FunctionAppName`, and `StorageAccountName`.
+Use `NotionManagementFunctionApp/deploy.ps1` from the function app directory. Fill the configuration section first, especially `SubscriptionId`, `ResourceGroupName`, `FunctionAppName`, and `ApplicationInsightsName`.
 
 Do not write the Notion token into the script. Set it for the current PowerShell session:
 
@@ -80,16 +80,16 @@ $env:NOTION_TOKEN = "secret_xxx"
 .\deploy.ps1
 ```
 
-The script creates or reuses the resource group, storage account, and Windows Consumption Function App, configures app settings, builds the solution, and publishes the function app.
+The script does not create Azure infrastructure. The resource group, storage account, Function App, Log Analytics workspace, and Application Insights resource must already exist. The script checks the existing Function App and Application Insights resource, configures app settings, builds the solution, and publishes the function app.
 
 ## Application Insights
 
-`deploy.ps1` creates or reuses:
+Azure resources are created manually. `deploy.ps1` expects these resources to already exist:
 
 - Log Analytics workspace: `notion-management-law`.
 - Workspace-based Application Insights resource: `notion-management-ai`.
 
-The script reads the Application Insights connection string from Azure and stores it in the Function App setting:
+The script reads the existing Application Insights connection string from Azure and stores it in the Function App setting:
 
 ```text
 APPLICATIONINSIGHTS_CONNECTION_STRING = <read from Azure during deployment>
