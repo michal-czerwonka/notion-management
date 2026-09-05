@@ -4,6 +4,8 @@ namespace NotionManagementFunctionApp.SendNotionTaskNotifications;
 
 public sealed class SendNotionTaskNotificationsRunner
 {
+    private const string DoneStatusName = "Zrobione";
+
     private readonly NotionTodayTasksClient _notionTodayTasksClient;
     private readonly NtfyClient _ntfyClient;
     private readonly ILogger<SendNotionTaskNotificationsRunner> _logger;
@@ -42,11 +44,36 @@ public sealed class SendNotionTaskNotificationsRunner
             return "brak zadań, trzeba uzupełnić Notion";
         }
 
+        var tasksToDo = tasks
+            .Where(task => !IsDone(task))
+            .ToList();
+        var doneTasks = tasks
+            .Where(IsDone)
+            .ToList();
+
         var lines = new List<string>
         {
             $"Zadania na dzisiaj: {tasks.Count}",
             ""
         };
+
+        AddTaskSection(lines, "Do zrobienia", tasksToDo);
+        AddTaskSection(lines, "Zrobione", doneTasks);
+
+        return string.Join(Environment.NewLine, lines).TrimEnd();
+    }
+
+    private static void AddTaskSection(List<string> lines, string title, IReadOnlyList<NotionTodayTask> tasks)
+    {
+        lines.Add($"{title}: {tasks.Count}");
+        lines.Add("");
+
+        if (tasks.Count == 0)
+        {
+            lines.Add("brak");
+            lines.Add("");
+            return;
+        }
 
         foreach (var task in tasks)
         {
@@ -54,8 +81,11 @@ public sealed class SendNotionTaskNotificationsRunner
             lines.Add($"  Status: {EscapeMarkdown(task.Status)}");
             lines.Add("");
         }
+    }
 
-        return string.Join(Environment.NewLine, lines);
+    private static bool IsDone(NotionTodayTask task)
+    {
+        return string.Equals(task.Status, DoneStatusName, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string EscapeMarkdown(string value)
