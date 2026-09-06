@@ -5,7 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NotionManagementFunctionApp;
 using NotionManagementFunctionApp.CreateNotionTasks;
-using NotionManagementFunctionApp.Inbox;
+using NotionManagementFunctionApp.NotionInboxItems;
 using NotionManagementFunctionApp.SendNotionTaskNotifications;
 
 var host = new HostBuilder()
@@ -30,7 +30,7 @@ var host = new HostBuilder()
         services.AddSingleton<SchedulerClock>();
         services.AddSingleton<CreateNotionTasksRunner>();
         services.AddHttpClient<NotionTasksClient>();
-        services.AddHttpClient<NotionInboxClient>();
+        services.AddHttpClient<NotionInboxItemsClient>();
 
         services.AddSingleton<SendNotionTaskNotificationsRunner>();
         services.AddSingleton<NtfyClient>();

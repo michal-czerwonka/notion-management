@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Inbox</string>
-    <string name="title_activity_main">Inbox</string>
+    <string name="app_name">Notion Management</string>
+    <string name="title_activity_main">Notion Management</string>
     <string name="package_name">pl.notionmanagement.inbox</string>
     <string name="custom_url_scheme">pl.notionmanagement.inbox</string>
 </resources>

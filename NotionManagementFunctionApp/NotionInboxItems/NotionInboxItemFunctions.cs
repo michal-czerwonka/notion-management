@@ -5,18 +5,18 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 
-namespace NotionManagementFunctionApp.Inbox;
+namespace NotionManagementFunctionApp.NotionInboxItems;
 
-public sealed class InboxFunctions(
-    NotionInboxClient client,
+public sealed class NotionInboxItemFunctions(
+    NotionInboxItemsClient client,
     TelemetryClient telemetryClient,
-    ILogger<InboxFunctions> logger)
+    ILogger<NotionInboxItemFunctions> logger)
 {
     // TODO: replace anonymous access with user authentication. This path is discoverable in the APK.
     private const string Route = "inbox/a9cea60dda62442e";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    [Function("GetInbox")]
+    [Function("GetNotionInboxItems")]
     public Task<HttpResponseData> GetAsync(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = Route)] HttpRequestData request,
         CancellationToken cancellationToken) => ExecuteAsync(request, async () =>
@@ -25,15 +25,15 @@ public sealed class InboxFunctions(
             return await WriteJsonAsync(request, HttpStatusCode.OK, items, cancellationToken);
         }, cancellationToken);
 
-    [Function("CreateInboxItem")]
+    [Function("CreateNotionInboxItem")]
     public Task<HttpResponseData> PostAsync(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = Route)] HttpRequestData request,
         CancellationToken cancellationToken) => ExecuteAsync(request, async () =>
         {
-            CreateInboxItemRequest? body;
+            CreateNotionInboxItemRequest? body;
             try
             {
-                body = await JsonSerializer.DeserializeAsync<CreateInboxItemRequest>(
+                body = await JsonSerializer.DeserializeAsync<CreateNotionInboxItemRequest>(
                     request.Body, JsonOptions, cancellationToken);
             }
             catch (JsonException)
@@ -67,7 +67,7 @@ public sealed class InboxFunctions(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Inbox request failed.");
+            logger.LogError(ex, "Notion Inbox item request failed.");
             telemetryClient.TrackException(ex, new Dictionary<string, string>
             {
                 ["FunctionName"] = request.FunctionContext.FunctionDefinition.Name,

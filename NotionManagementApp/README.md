@@ -1,4 +1,4 @@
-# Inbox — React + TypeScript + Capacitor
+# Notion Management — React + TypeScript + Capacitor
 
 Osobny projekt npm obok rozwiązania .NET. `src/App.tsx` jest punktem wejścia dla kolejnych widoków, `src/pages/InboxPage.tsx` obsługuje Inbox, a `src/api/inbox.ts` komunikację wyłącznie z Function App. Nie ma routera, globalnego store ani biblioteki UI; wygląd inspirowany Material Design zapewnia CSS.
 
@@ -26,7 +26,7 @@ Z katalogu głównego repozytorium:
 
 ```powershell
 cd NotionManagementFunctionApp
-func start --functions GetInbox CreateInboxItem
+func start --functions GetNotionInboxItems CreateNotionInboxItem
 ```
 
 Kontrakt endpointów:
@@ -48,14 +48,14 @@ Odpowiedź `201`: `{ "id": "notion-page-id", "name": "Moja myśl" }`. Backend us
 
 W Azure ustaw `Notion__InboxDataSourceId`. Możesz też wypełnić `$NotionInboxDataSourceId` w `deploy.ps1`; pusta wartość pozostawia istniejące ustawienie Azure bez zmian. Skrypt dodaje do CORS origin Androida `https://localhost`. Dla lokalnego frontendu korzystającego z Azure dodaj również `http://127.0.0.1:5173` do `$InboxAllowedOrigins` albo w panelu CORS Function App. CORS dotyczy całej Function App; istniejące originy pozostają zachowane.
 
-**MVP:** endpointy są anonimowe. Losowy fragment ścieżki utrudnia zgadywanie, ale jest widoczny w APK i ruchu sieciowym. Każdy znający URL może czytać i dodawać wpisy. TODO docelowej autoryzacji znajduje się w `InboxFunctions.cs` i `src/api/inbox.ts`. Nie umieszczaj klucza Function App ani tokena Notion w aplikacji.
+**MVP:** endpointy są anonimowe. Losowy fragment ścieżki utrudnia zgadywanie, ale jest widoczny w APK i ruchu sieciowym. Każdy znający URL może czytać i dodawać wpisy. TODO docelowej autoryzacji znajduje się w `NotionInboxItemFunctions.cs` i `src/api/inbox.ts`. Nie umieszczaj klucza Function App ani tokena Notion w aplikacji.
 
 ## 2. Frontend lokalnie
 
 Wymagany Node.js 22+. Z katalogu głównego repozytorium:
 
 ```powershell
-cd NotionInboxApp
+cd NotionManagementApp
 npm ci
 Copy-Item .env.example .env.local
 npm run dev
@@ -80,7 +80,7 @@ W `.env.local` ustaw adres wdrożonej Function App przez HTTPS:
 VITE_INBOX_API_URL=https://TWOJA-FUNCTION-APP.azurewebsites.net/api/inbox/a9cea60dda62442e
 ```
 
-Projekt `android/` jest w repozytorium, więc nie wykonuj ponownie `cap add android`. Z katalogu `NotionInboxApp`:
+Projekt `android/` jest w repozytorium, więc nie wykonuj ponownie `cap add android`. Z katalogu `NotionManagementApp`:
 
 ```powershell
 npm run android:sync
@@ -97,7 +97,7 @@ Telefon nie widzi komputera pod `localhost`. Dla urządzenia używaj API Azure p
 
 ## 4. APK i instalacja przez USB
 
-Po skonfigurowaniu SDK/JDK, z katalogu `NotionInboxApp`:
+Po skonfigurowaniu SDK/JDK, z katalogu `NotionManagementApp`:
 
 ```powershell
 npm run android:sync

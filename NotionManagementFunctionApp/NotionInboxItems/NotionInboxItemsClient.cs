@@ -2,15 +2,15 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 
-namespace NotionManagementFunctionApp.Inbox;
+namespace NotionManagementFunctionApp.NotionInboxItems;
 
-public sealed class NotionInboxClient
+public sealed class NotionInboxItemsClient
 {
     private readonly HttpClient _httpClient;
     private readonly string _token;
     private readonly string _dataSourceId;
 
-    public NotionInboxClient(HttpClient httpClient, IConfiguration configuration)
+    public NotionInboxItemsClient(HttpClient httpClient, IConfiguration configuration)
     {
         _httpClient = httpClient;
         NotionApi.Configure(_httpClient);
@@ -18,10 +18,10 @@ public sealed class NotionInboxClient
         _dataSourceId = configuration["Notion:InboxDataSourceId"] ?? "";
     }
 
-    public async Task<IReadOnlyList<InboxItem>> GetItemsAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<NotionInboxItem>> GetItemsAsync(CancellationToken cancellationToken)
     {
         EnsureConfigured();
-        var items = new List<InboxItem>();
+        var items = new List<NotionInboxItem>();
         string? cursor = null;
         do
         {
@@ -58,7 +58,7 @@ public sealed class NotionInboxClient
         return items;
     }
 
-    public async Task<InboxItem> CreateItemAsync(string name, CancellationToken cancellationToken)
+    public async Task<NotionInboxItem> CreateItemAsync(string name, CancellationToken cancellationToken)
     {
         EnsureConfigured();
         using var request = NotionApi.CreateRequest(HttpMethod.Post, "pages", _token,
@@ -74,7 +74,7 @@ public sealed class NotionInboxClient
         return ReadItem(document.RootElement);
     }
 
-    private static InboxItem ReadItem(JsonElement page) => new(
+    private static NotionInboxItem ReadItem(JsonElement page) => new(
         page.GetProperty("id").GetString() ?? throw new JsonException("Missing Notion page id."),
         NotionApi.ReadTitle(page, "Nazwa") ?? "");
 
