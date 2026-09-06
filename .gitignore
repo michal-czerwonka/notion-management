@@ -7,3 +7,12 @@ local.settings.json
 .vscode/
 *.user
 *.suo
+
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+
+.idea

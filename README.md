@@ -5,6 +5,9 @@ Solution for Notion-related automation.
 Current projects:
 
 - `NotionManagementFunctionApp` - Azure Functions 4 app using the C# isolated worker model on .NET 10.
+- `NotionInboxApp` - React + TypeScript + Capacitor Android app for Inbox; independent npm project, intentionally outside the .NET solution.
+
+Inbox MVP: anonymous `GET` and `POST /api/inbox/a9cea60dda62442e`, backed by `Notion:InboxDataSourceId`. See [Inbox setup, local frontend, Android and APK instructions](NotionInboxApp/README.md). The random route is temporary obscurity, not authentication; the app contains no Notion token or Function App key.
 
 Timers are evaluated in the Function App timezone configured by `WEBSITE_TIME_ZONE`. For this project, Azure uses `Central European Standard Time`, which corresponds to Europe/Warsaw. The task creation timer is configured through `Scheduler:Schedule`:
 
