@@ -23,6 +23,8 @@ $TasksFilePath = "CreateNotionTasks/tasks.json"
 $NotificationsSchedule = "0 0 15,18,23 * * *"
 $FunctionAppTimeZone = "Central European Standard Time" # Europe/Warsaw for Windows Function Apps.
 $NotionDataSourceId = "34c8bc09-19d3-80b2-9e8c-000b798e750e"
+$NotionInboxDataSourceId = "3d38bc09-19d3-80f5-bbc3-000b420b9086" # TODO: Inbox data source id; empty leaves the Azure setting unchanged.
+$InboxAllowedOrigins = @("https://localhost") # Capacitor Android WebView origin.
 $NotionTodayViewId = "34e8bc0919d380c595f1000c54fb8ad5"
 $NotionTodayViewName = "Na dzisiaj"
 $NtfyBaseUrl = "https://ntfy.sh"
@@ -151,6 +153,18 @@ if ([string]::IsNullOrWhiteSpace($applicationInsightsConnectionString)) {
     throw "Application Insights '$ApplicationInsightsName' was not found in resource group '$ResourceGroupName' or does not expose a connection string. Create it manually before running this script."
 }
 
+if (-not [string]::IsNullOrWhiteSpace($NotionInboxDataSourceId)) {
+    Invoke-AzCli `
+        -Step "Configuring Inbox data source" `
+        -Arguments @(
+            "functionapp", "config", "appsettings", "set",
+            "--name", $FunctionAppName,
+            "--resource-group", $ResourceGroupName,
+            "--settings", "Notion__InboxDataSourceId=$NotionInboxDataSourceId",
+            "--output", "none"
+        )
+}
+
 Invoke-AzCli `
     -Step "Configuring Function App application settings" `
     -Arguments @(
@@ -174,6 +188,18 @@ Invoke-AzCli `
         "Ntfy__Topic=$NtfyTopic",
         "--output", "none"
     )
+
+foreach ($origin in $InboxAllowedOrigins) {
+    Invoke-AzCli `
+        -Step "Allowing Inbox origin '$origin'" `
+        -Arguments @(
+            "functionapp", "cors", "add",
+            "--name", $FunctionAppName,
+            "--resource-group", $ResourceGroupName,
+            "--allowed-origins", $origin,
+            "--output", "none"
+        )
+}
 
 Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Building solution..."
 dotnet build (Join-Path $PSScriptRoot "..\NotionManagement.sln") --configuration Release

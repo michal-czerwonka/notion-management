@@ -1,4 +1,3 @@
-using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
@@ -8,7 +7,6 @@ namespace NotionManagementFunctionApp.SendNotionTaskNotifications;
 
 public sealed class NotionTodayTasksClient
 {
-    private const string NotionVersion = "2026-03-11";
     private const string TitlePropertyName = "Nazwa";
     private const string StatusPropertyName = "Status";
 
@@ -25,8 +23,7 @@ public sealed class NotionTodayTasksClient
         ILogger<NotionTodayTasksClient> logger)
     {
         _httpClient = httpClient;
-        _httpClient.BaseAddress = new Uri("https://api.notion.com/v1/");
-        _httpClient.DefaultRequestHeaders.Add("Notion-Version", NotionVersion);
+        NotionApi.Configure(_httpClient);
 
         _token = configuration["Notion:Token"] ?? "";
         _dataSourceId = configuration["Notion:DataSourceId"] ?? "";
@@ -202,7 +199,7 @@ public sealed class NotionTodayTasksClient
         using var document = JsonDocument.Parse(responseBody);
         var root = document.RootElement;
 
-        var name = ReadTitle(root, TitlePropertyName);
+        var name = NotionApi.ReadTitle(root, TitlePropertyName);
         if (string.IsNullOrWhiteSpace(name))
         {
             name = "(bez nazwy)";
@@ -248,23 +245,6 @@ public sealed class NotionTodayTasksClient
         }
     }
 
-    private static string? ReadTitle(JsonElement page, string propertyName)
-    {
-        if (!page.TryGetProperty("properties", out var properties) ||
-            !properties.TryGetProperty(propertyName, out var titleProperty) ||
-            !titleProperty.TryGetProperty("title", out var titleValues))
-        {
-            return null;
-        }
-
-        var parts = titleValues
-            .EnumerateArray()
-            .Select(title => GetString(title, "plain_text"))
-            .Where(part => !string.IsNullOrWhiteSpace(part));
-
-        return string.Join("", parts);
-    }
-
     private static string? ReadStatus(JsonElement page, string propertyName)
     {
         if (!page.TryGetProperty("properties", out var properties) ||
@@ -280,8 +260,7 @@ public sealed class NotionTodayTasksClient
 
     private HttpRequestMessage CreateRequest(HttpMethod method, string uri, object? body = null)
     {
-        var request = new HttpRequestMessage(method, uri);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _token);
+        var request = NotionApi.CreateRequest(method, uri, _token);
 
         if (body is not null)
         {

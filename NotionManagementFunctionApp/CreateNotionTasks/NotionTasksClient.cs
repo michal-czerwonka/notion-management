@@ -1,4 +1,3 @@
-using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
@@ -7,7 +6,6 @@ namespace NotionManagementFunctionApp.CreateNotionTasks;
 
 public sealed class NotionTasksClient
 {
-    private const string NotionVersion = "2026-03-11";
     private const string TodoStatusName = "Do zrobienia";
 
     private readonly HttpClient _httpClient;
@@ -17,8 +15,7 @@ public sealed class NotionTasksClient
     public NotionTasksClient(HttpClient httpClient, IConfiguration configuration)
     {
         _httpClient = httpClient;
-        _httpClient.BaseAddress = new Uri("https://api.notion.com/v1/");
-        _httpClient.DefaultRequestHeaders.Add("Notion-Version", NotionVersion);
+        NotionApi.Configure(_httpClient);
 
         _token = configuration["Notion:Token"] ?? "";
 
@@ -38,9 +35,8 @@ public sealed class NotionTasksClient
             throw new InvalidOperationException("Missing Notion:DataSourceId configuration.");
         }
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, "pages")
-        {
-            Content = CreateJsonContent(new Dictionary<string, object?>
+        using var request = NotionApi.CreateRequest(HttpMethod.Post, "pages", _token,
+            CreateJsonContent(new Dictionary<string, object?>
             {
                 ["parent"] = new Dictionary<string, object?>
                 {
@@ -49,21 +45,7 @@ public sealed class NotionTasksClient
                 },
                 ["properties"] = new Dictionary<string, object?>
                 {
-                    ["Nazwa"] = new Dictionary<string, object?>
-                    {
-                        ["type"] = "title",
-                        ["title"] = new object[]
-                        {
-                            new Dictionary<string, object?>
-                            {
-                                ["type"] = "text",
-                                ["text"] = new Dictionary<string, object?>
-                                {
-                                    ["content"] = task.Name
-                                }
-                            }
-                        }
-                    },
+                    ["Nazwa"] = NotionApi.TitleProperty(task.Name),
                     ["Zaplanowane na"] = new Dictionary<string, object?>
                     {
                         ["type"] = "date",
@@ -81,10 +63,7 @@ public sealed class NotionTasksClient
                         }
                     }
                 }
-            })
-        };
-
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _token);
+            }));
 
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
