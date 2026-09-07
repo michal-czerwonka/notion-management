@@ -22,12 +22,7 @@ Dodaj/rozszerz sekcję `Host` obok `Values`, zachowując istniejące ustawienia:
 
 Plik `local.settings.json.example` zawiera wzór konfiguracji dla świeżego checkoutu (z wyłączonymi timerami). Nie nadpisuj nim istniejących ustawień. Przy `UseDevelopmentStorage=true` uruchom lokalny Azurite. Wymagane: .NET 10 SDK i Azure Functions Core Tools v4.
 
-Z katalogu głównego repozytorium:
-
-```powershell
-cd NotionManagementFunctionApp
-func start --functions GetNotionInboxItems CreateNotionInboxItem
-```
+Z katalogu głównego repozytorium uruchom `scripts\local\Start-LocalFunctionApp.ps1`. Skrypt uruchamia Azurite w tle i Function App na `http://127.0.0.1:7071`. Po zakończeniu pracy zatrzymaj Azurite przez `scripts\local\Stop-LocalAzurite.ps1`.
 
 Kontrakt endpointów:
 
@@ -50,63 +45,54 @@ W Azure ustaw `Notion__InboxDataSourceId`. Możesz też wypełnić `$NotionInbox
 
 **MVP:** endpointy są anonimowe. Losowy fragment ścieżki utrudnia zgadywanie, ale jest widoczny w APK i ruchu sieciowym. Każdy znający URL może czytać i dodawać wpisy. TODO docelowej autoryzacji znajduje się w `NotionInboxItemFunctions.cs` i `src/api/inbox.ts`. Nie umieszczaj klucza Function App ani tokena Notion w aplikacji.
 
-## 2. Frontend lokalnie
+## 2. Lokalne profile API
 
-Wymagany Node.js 22+. Z katalogu głównego repozytorium:
+Adres API jest wybierany przed budową APK i zostaje w nim osadzony. Prywatne pliki profili są ignorowane przez Git:
+
+- `.env.local-emulator` — lokalna Function App dla emulatora Androida. Używa `http://10.0.2.2:7071`, ponieważ pod tym adresem emulator widzi Windows.
+- `.env.development-phone` — wdrożona, developerska Function App dostępna przez HTTPS dla fizycznego telefonu.
+
+Przy pierwszym użyciu utwórz oba pliki na podstawie wzorów:
 
 ```powershell
 cd NotionManagementApp
-npm ci
-Copy-Item .env.example .env.local
+Copy-Item .env.local-emulator.example .env.local-emulator
+Copy-Item .env.development-phone.example .env.development-phone
+```
+
+W pliku `development-phone` ustaw rzeczywisty publiczny adres Function App. Wartości `VITE_*` są publiczne i wbudowywane do APK, dlatego nigdy nie umieszczaj w nich tokenów ani kluczy Function App.
+
+## 3. Build APK
+
+Projekt `android/` jest w repozytorium, więc nie uruchamiaj `cap add android`. Skrypt sam instaluje zależności npm, jeśli ich nie ma, buduje frontend z właściwym profilem, wykonuje `cap sync android`, buduje debug APK przez Gradle Wrapper i otwiera folder wyniku w Eksploratorze Windows. Wymaga JDK 21 ustawionego w `JAVA_HOME`; wbudowane JBR Android Studio ma obecnie Javę 25 i nie współpracuje z używaną wersją Gradle.
+
+Build dla lokalnego emulatora — wcześniej uruchom `Start-LocalFunctionApp.ps1`:
+
+```powershell
+.\scripts\local\Build-LocalEmulatorApk.ps1
+```
+
+Build dla fizycznego telefonu, korzystający z developerskiego API HTTPS:
+
+```powershell
+.\scripts\local\Build-DevelopmentPhoneApk.ps1
+```
+
+Wyniki są kopiowane do `artifacts\android` przy root repozytorium:
+
+- `NotionManagementApp-localemulator-debug.apk`
+- `NotionManagementApp-developmentphone-debug.apk`
+
+Możesz przeciągnąć APK do uruchomionego emulatora w Android Studio albo zainstalować go ręcznie na telefonie. `adb` musi być w `PATH` (zwykle `%ANDROID_HOME%\platform-tools`).
+
+## 4. Frontend w przeglądarce
+
+Do pracy z Vite w przeglądarce ustaw tymczasowo adres lokalnego API dla bieżącej sesji PowerShell i uruchom serwer:
+
+```powershell
+cd NotionManagementApp
+$env:VITE_INBOX_API_URL = 'http://127.0.0.1:7071/api/inbox/a9cea60dda62442e'
 npm run dev
 ```
 
-Otwórz `http://127.0.0.1:5173`. Jeśli port jest zajęty, zwolnij go lub dodaj faktyczny origin do CORS. `VITE_INBOX_API_URL` w `.env.local` to pełny adres endpointu. Zmiana wymaga restartu Vite, a dla APK ponownego builda i synchronizacji. Wszystkie wartości `VITE_*` są publiczne i wbudowane w aplikację.
-
-```powershell
-npm run build
-npm run preview
-```
-
-Preview używa portu 4173 — dodaj jego origin do lokalnego CORS, jeśli chcesz korzystać z API w tym trybie.
-
-## 3. Android przez Capacitor
-
-Zainstaluj Android Studio 2025.2.1 lub nowsze, Android SDK Platform 36 oraz SDK Platform-Tools. Android Studio dostarcza JDK; dla poleceń Gradle ustaw `JAVA_HOME` na jego katalog `jbr` (JDK 21+) oraz `ANDROID_HOME` na katalog SDK. Szczegóły: [środowisko Capacitor](https://capacitorjs.com/docs/getting-started/environment-setup), [Android](https://capacitorjs.com/docs/android).
-
-W `.env.local` ustaw adres wdrożonej Function App przez HTTPS:
-
-```dotenv
-VITE_INBOX_API_URL=https://TWOJA-FUNCTION-APP.azurewebsites.net/api/inbox/a9cea60dda62442e
-```
-
-Projekt `android/` jest w repozytorium, więc nie wykonuj ponownie `cap add android`. Z katalogu `NotionManagementApp`:
-
-```powershell
-npm run android:sync
-npm run android:open
-```
-
-W Android Studio poczekaj na Gradle Sync, wybierz emulator lub telefon z włączonym debugowaniem USB i kliknij Run. Alternatywnie:
-
-```powershell
-npm run android:run
-```
-
-Telefon nie widzi komputera pod `localhost`. Dla urządzenia używaj API Azure przez HTTPS (z CORS `https://localhost`); konfiguracja produkcyjna nie dopuszcza niezabezpieczonego HTTP. Lokalne API można udostępnić przez tunel HTTPS i wpisać jego URL do `.env.local`.
-
-## 4. APK i instalacja przez USB
-
-Po skonfigurowaniu SDK/JDK, z katalogu `NotionManagementApp`:
-
-```powershell
-npm run android:sync
-cd android
-.\gradlew.bat assembleDebug
-adb devices
-adb install -r app\build\outputs\apk\debug\app-debug.apk
-```
-
-`adb` musi być w PATH (katalog `$env:ANDROID_HOME\platform-tools`). W telefonie włącz Opcje programisty → Debugowanie USB i zaakceptuj klucz komputera. Przy wielu urządzeniach użyj `adb -s SERIAL install -r ...`.
-
-Debug APK jest podpisany kluczem deweloperskim i wystarcza do MVP. Do dystrybucji użyj Android Studio → Build → Generate Signed App Bundle / APK → APK i własnego keystore przechowywanego poza repozytorium. Po każdej zmianie frontendu/config uruchom ponownie `android:sync` oraz build APK.
+Otwórz `http://127.0.0.1:5173`. Jeśli używasz wdrożonego API, ustaw jego pełny adres HTTPS zamiast lokalnego. Preview używa portu 4173, który trzeba dodatkowo dopuścić w CORS lokalnej Function App.

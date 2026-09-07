@@ -9,6 +9,35 @@ Current projects:
 
 Notion Inbox MVP: anonymous `GET` and `POST /api/inbox/a9cea60dda62442e`, backed by `Notion:InboxDataSourceId`. See [Inbox setup, local frontend, Android and APK instructions](NotionManagementApp/README.md). The random route is temporary obscurity, not authentication; the app contains no Notion token or Function App key.
 
+## Required local tools
+
+Docker is not required for the standard local workflow. Install the following tools directly on Windows and make their commands available on `PATH`.
+
+### Function App and local services
+
+- **.NET SDK 10** — builds and runs `NotionManagementFunctionApp`.
+- **Azure Functions Core Tools v4** — provides `func start` for local Functions and `func azure functionapp publish` for deployment.
+- **Azurite** — local Azure Storage emulator required by `AzureWebJobsStorage=UseDevelopmentStorage=true`. Start it before running the Function App. It can be installed with `npm install --global azurite`.
+- **Node.js 22 or newer (LTS recommended)** — supplies `npm` for the web/mobile project and for installing Azurite. The project-local dependencies install with `npm ci`; do not install Vite or Capacitor globally.
+
+### Notion Management Android application
+
+- **Android Studio** — opens, builds, and runs the native Android project.
+- **Android SDK Platform 36 and Android SDK Build-Tools** — installed through Android Studio's SDK Manager.
+- **Android SDK Platform-Tools** — supplies `adb` for installing the debug APK on a phone or emulator.
+- **JDK 21** — required by the current Gradle/Android build. Configure `JAVA_HOME` to this JDK when running the build script. The currently installed Android Studio bundled JBR is Java 25 and is not compatible with this Gradle version.
+
+Gradle does not need a separate installation because the project includes the Gradle Wrapper. For command-line Android builds, configure `ANDROID_HOME` to the Android SDK location and add `%ANDROID_HOME%\platform-tools` to `PATH`.
+
+### Deployment to Azure
+
+- **PowerShell** — runs `NotionManagementFunctionApp/deploy.ps1`.
+- **Azure CLI (`az`)** — authenticates with Azure, configures Function App settings and CORS, and reads Azure resource data used by the deployment script.
+- **.NET SDK 10** and **Azure Functions Core Tools v4** — also required by the deployment script to build and publish the Function App.
+- **Azure account with access to the existing resource group, Function App and Application Insights resource** — required by `az login` and the script. The script does not create Azure infrastructure.
+
+Docker remains optional, for isolated builds only. It is not needed to run the Function App, frontend, Azurite, Android Studio, or deployment workflow locally.
+
 Timers are evaluated in the Function App timezone configured by `WEBSITE_TIME_ZONE`. For this project, Azure uses `Central European Standard Time`, which corresponds to Europe/Warsaw. The task creation timer is configured through `Scheduler:Schedule`:
 
 ```json
