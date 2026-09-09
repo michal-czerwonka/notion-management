@@ -31,7 +31,7 @@ Gradle does not need a separate installation because the project includes the Gr
 
 ### Deployment to Azure
 
-- **GitHub repository secrets and Azure OpenID Connect configuration** — authenticate the manual GitHub Actions deployment workflows.
+- **GitHub repository secrets and Azure OpenID Connect configuration** — authenticate the GitHub Actions deployment workflows, which run after a push to `main` and can also be started manually.
 - **Azure resources** — the resource group, Function App, storage account, Log Analytics workspace and Application Insights resource must already exist. The workflows do not create infrastructure.
 
 Docker remains optional, for isolated builds only. It is not needed to run the Function App, frontend, Azurite, Android Studio, or deployment workflow locally.
@@ -101,7 +101,7 @@ Created tasks set these Notion properties:
 
 ## Deployment
 
-Use the manual GitHub Actions workflows for development deployments. Their configuration, secret setup, Azure OIDC setup and detailed build/deployment process are documented in [deployment/README.md](deployment/README.md).
+GitHub Actions deploys the Function App and builds/uploads the development Android APK after every push to `main`, including merged pull requests. Both workflows can also be run manually. Their configuration, secret setup, Azure OIDC setup and detailed build/deployment process are documented in [deployment/README.md](deployment/README.md).
 
 ## Application Insights
 

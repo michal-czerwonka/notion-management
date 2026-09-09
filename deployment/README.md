@@ -1,6 +1,6 @@
 # Deployment
 
-GitHub Actions contains two workflows that run only when manually started from the **Actions** tab on the default branch:
+GitHub Actions contains two workflows that run automatically after a push to `main` (including a merged pull request) and can also be started manually from the **Actions** tab:
 
 - `Deploy Function App (dev)` configures and deploys the Azure Function App.
 - `Build Android App (dev)` creates a debug APK, exposes it as a GitHub Actions artifact for seven days, and uploads it to Google Drive.
