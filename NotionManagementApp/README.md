@@ -10,7 +10,7 @@ W istniejącym `NotionManagementFunctionApp/local.settings.json` dodaj do `Value
 "Notion:InboxDataSourceId": "TODO_INBOX_DATA_SOURCE_ID"
 ```
 
-Zastąp placeholder **data source ID** Inbox (nie ID widoku). Wykorzystywany jest istniejący `Notion:Token`. Udostępnij bazę tej integracji w Notion i nadaj jej uprawnienia odczytu oraz dodawania stron. Property `Nazwa` musi mieć typ `title`.
+Zastąp placeholder **data source ID** Inbox (nie ID widoku). Wykorzystywany jest istniejący `Notion:Token`. Udostępnij bazę tej integracji w Notion i nadaj jej uprawnienia odczytu, dodawania oraz edytowania stron. Property `Nazwa` musi mieć typ `title`.
 
 Dodaj/rozszerz sekcję `Host` obok `Values`, zachowując istniejące ustawienia:
 
@@ -49,6 +49,12 @@ Content-Type: application/json
 ```
 
 Odpowiedź `200`: `{ "id": "notion-page-id", "name": "Poprawiona myśl" }`. Endpoint aktualizuje wyłącznie strony należące do Inbox; dla obcego lub usuniętego wpisu zwraca `404`.
+
+```http
+POST /api/inbox/a9cea60dda62442e/{notion-page-id}/move-to-tasks
+```
+
+Odpowiedź `200`: `{ "taskId": "notion-page-id" }`. Endpoint tworzy w bazie `Zadania` zadanie o tej samej nazwie, ze statusem `Do zrobienia` i datą `Zaplanowane na` równą bieżącemu dniu według `Scheduler:TimeZone`. Właściwość projektu nie jest przesyłana, więc pozostaje pusta. Dopiero po powodzeniu utworzenia zadania wpis Inbox jest archiwizowany. Jeżeli archiwizacja zawiedzie, wpis pozostaje w Inbox, a odpowiedź informuje, że zadanie mogło już powstać; ponowienie może więc stworzyć duplikat.
 
 W Azure ustaw `Notion__InboxDataSourceId` przez workflow `Deploy Function App (dev)`. Skonfigurowany origin Androida to `https://localhost`. Dla lokalnego frontendu korzystającego z Azure dodaj również `http://127.0.0.1:5173` w CORS Function App. CORS dotyczy całej Function App; istniejące originy pozostają zachowane.
 

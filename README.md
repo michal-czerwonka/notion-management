@@ -7,7 +7,7 @@ Current projects:
 - `NotionManagementFunctionApp` - Azure Functions 4 app using the C# isolated worker model on .NET 10.
 - `NotionManagementApp` - React + TypeScript + Capacitor Android app; independent npm project, intentionally outside the .NET solution.
 
-Notion Inbox MVP: anonymous `GET` and `POST /api/inbox/a9cea60dda62442e`, backed by `Notion:InboxDataSourceId`. See [Inbox setup, local frontend, Android and APK instructions](NotionManagementApp/README.md). The random route is temporary obscurity, not authentication; the app contains no Notion token or Function App key.
+Notion Inbox MVP: anonymous `GET`, `POST`, `PATCH` and `POST /api/inbox/a9cea60dda62442e/{id}/move-to-tasks`, backed by `Notion:InboxDataSourceId`. The last endpoint creates a task in `Notion:DataSourceId` and then archives the Inbox item. See [Inbox setup, local frontend, Android and APK instructions](NotionManagementApp/README.md). The random route is temporary obscurity, not authentication; the app contains no Notion token or Function App key.
 
 ## Required local tools
 

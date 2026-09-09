@@ -3,10 +3,11 @@ export interface InboxItem {
   name: string;
 }
 
-async function request(method: 'GET' | 'POST' | 'PATCH', name?: string, id?: string, signal?: AbortSignal): Promise<unknown> {
+async function request(method: 'GET' | 'POST' | 'PATCH', name?: string, id?: string, signal?: AbortSignal, action?: 'move-to-tasks'): Promise<unknown> {
   const endpoint = import.meta.env.VITE_INBOX_API_URL?.trim();
   if (!endpoint) throw new Error('Brak adresu API. Ustaw VITE_INBOX_API_URL i przebuduj aplikację.');
-  const url = id ? `${endpoint}/${encodeURIComponent(id)}` : endpoint;
+  const itemUrl = id ? `${endpoint}/${encodeURIComponent(id)}` : endpoint;
+  const url = action ? `${itemUrl}/${action}` : itemUrl;
 
   // TODO: attach a user access token here once backend authentication is implemented.
   // The URL is public configuration, not a substitute for authentication.
@@ -15,14 +16,16 @@ async function request(method: 'GET' | 'POST' | 'PATCH', name?: string, id?: str
     response = await fetch(url, {
       method,
       headers: method === 'GET' ? undefined : { 'Content-Type': 'application/json' },
-      body: method === 'GET' ? undefined : JSON.stringify({ name }),
+      body: method === 'GET' || action ? undefined : JSON.stringify({ name }),
       signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(60_000)]) : AbortSignal.timeout(60_000),
       credentials: 'omit',
       cache: 'no-store',
     });
   } catch (error) {
     if (signal?.aborted) throw error;
-    throw new Error(method === 'GET'
+    throw new Error(action
+      ? 'Nie udało się przenieść wpisu. Odśwież Inbox przed ponowną próbą.'
+      : method === 'GET'
       ? 'Nie udało się połączyć z API. Sprawdź połączenie i spróbuj ponownie.'
       : method === 'POST'
       ? 'Nie udało się potwierdzić zapisu. Odśwież listę przed ponownym dodaniem, aby uniknąć duplikatu.'
@@ -30,6 +33,19 @@ async function request(method: 'GET' | 'POST' | 'PATCH', name?: string, id?: str
   }
 
   if (!response.ok) {
+    if (action) {
+      let errorMessage: string | undefined;
+      try {
+        const body: unknown = await response.json();
+        if (typeof body === 'object' && body !== null && 'error' in body && typeof body.error === 'string') {
+          errorMessage = body.error;
+        }
+      } catch { }
+      if (errorMessage) throw new Error(errorMessage);
+      throw new Error(response.status === 404
+        ? 'Ten wpis nie jest już dostępny. Odśwież listę.'
+        : 'Nie udało się przenieść wpisu. Odśwież Inbox przed ponowną próbą.');
+    }
     if (response.status === 400) throw new Error('Wpis musi mieć od 1 do 2000 znaków.');
     if (response.status === 404) throw new Error('Ten wpis nie jest już dostępny. Odśwież listę.');
     throw new Error(method === 'GET'
@@ -73,4 +89,8 @@ export async function updateInboxItem(id: string, name: string): Promise<InboxIt
   const result = await request('PATCH', name, id);
   if (!isInboxItem(result)) throw new Error('Nieprawidłowe potwierdzenie zapisu zmian. Odśwież listę przed ponowną próbą.');
   return result;
+}
+
+export async function moveInboxItemToTasks(id: string): Promise<void> {
+  await request('POST', undefined, id, undefined, 'move-to-tasks');
 }

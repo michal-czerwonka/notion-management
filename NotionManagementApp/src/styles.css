@@ -42,6 +42,9 @@ li + li { border-top: 1px solid #eee9f2; }
 .item-name { flex: 1; min-width: 0; }
 .edit-button { min-height: 40px; padding: 0 14px; background: #f4eff8; color: #584274; font-size: 14px; flex-shrink: 0; display: inline-flex; align-items: center; gap: 7px; }
 .edit-button:not(:disabled):hover { background: #e9def2; }
+.item-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.move-button { min-height: 40px; padding: 0 14px; background: #e6f2e8; color: #27653a; font-size: 14px; flex-shrink: 0; display: inline-flex; align-items: center; gap: 7px; }
+.move-button:not(:disabled):hover { background: #d4e9d8; }
 .editing-item { background: #fcfaff; }
 .editing-item .item-content { display: block; }
 .editing-item input { display: block; }
@@ -62,5 +65,6 @@ h3 { font-size: 18px; font-weight: 500; color: #403648; margin-bottom: 8px; }
   .primary { align-self: stretch; }
   .item-content { align-items: flex-start; flex-direction: column; gap: 10px; }
   .edit-button { align-self: flex-start; }
+  .item-actions { align-self: flex-start; flex-wrap: wrap; }
   .page-header { gap: 12px; }
 }

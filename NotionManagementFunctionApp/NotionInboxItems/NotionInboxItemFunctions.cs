@@ -4,17 +4,21 @@ using Microsoft.ApplicationInsights;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
+using NotionManagementFunctionApp.CreateNotionTasks;
 
 namespace NotionManagementFunctionApp.NotionInboxItems;
 
 public sealed class NotionInboxItemFunctions(
     NotionInboxItemsClient client,
+    NotionTasksClient tasksClient,
+    SchedulerClock clock,
     TelemetryClient telemetryClient,
     ILogger<NotionInboxItemFunctions> logger)
 {
     // TODO: replace anonymous access with user authentication. This path is discoverable in the APK.
     private const string Route = "inbox/a9cea60dda62442e";
     private const string ItemRoute = Route + "/{id}";
+    private const string MoveToTasksRoute = ItemRoute + "/move-to-tasks";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     [Function("GetNotionInboxItems")]
@@ -81,6 +85,32 @@ public sealed class NotionInboxItemFunctions(
             return await WriteJsonAsync(request, HttpStatusCode.OK, item, cancellationToken);
         }, cancellationToken);
 
+    [Function("MoveNotionInboxItemToTasks")]
+    public Task<HttpResponseData> MoveToTasksAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = MoveToTasksRoute)] HttpRequestData request,
+        string id,
+        CancellationToken cancellationToken) => ExecuteAsync(request, async () =>
+        {
+            var item = await client.GetItemAsync(id, cancellationToken);
+            var task = await tasksClient.CreateTaskAsync(item.Name, clock.Today(), cancellationToken);
+
+            try
+            {
+                await client.ArchiveItemAsync(id, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new TaskCreatedInboxArchiveFailedException(ex);
+            }
+
+            return await WriteJsonAsync(request, HttpStatusCode.OK,
+                new MoveNotionInboxItemResult(task.PageId), cancellationToken);
+        }, cancellationToken);
+
     private async Task<HttpResponseData> ExecuteAsync(HttpRequestData request,
         Func<Task<HttpResponseData>> action, CancellationToken cancellationToken)
     {
@@ -102,14 +132,17 @@ public sealed class NotionInboxItemFunctions(
             });
             var status = ex switch
             {
+                TaskCreatedInboxArchiveFailedException => HttpStatusCode.BadGateway,
                 HttpRequestException or JsonException => HttpStatusCode.BadGateway,
                 OperationCanceledException => HttpStatusCode.GatewayTimeout,
                 InvalidOperationException => HttpStatusCode.ServiceUnavailable,
                 KeyNotFoundException => HttpStatusCode.NotFound,
                 _ => HttpStatusCode.InternalServerError
             };
-            return await WriteJsonAsync(request, status,
-                new { error = "Nie udało się obsłużyć Inbox. Spróbuj ponownie później." }, cancellationToken);
+            var error = ex is TaskCreatedInboxArchiveFailedException
+                ? "Zadanie zostało utworzone, ale wpis pozostał w Inbox. Sprawdź Zadania przed ponowieniem."
+                : "Nie udało się obsłużyć Inbox. Spróbuj ponownie później.";
+            return await WriteJsonAsync(request, status, new { error }, cancellationToken);
         }
     }
 

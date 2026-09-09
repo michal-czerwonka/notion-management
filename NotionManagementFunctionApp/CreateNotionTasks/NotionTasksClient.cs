@@ -76,6 +76,9 @@ public sealed class NotionTasksClient
         return ParseCreatePageResponse(responseBody);
     }
 
+    public Task<NotionCreatePageResult> CreateTaskAsync(string name, DateOnly date, CancellationToken cancellationToken) =>
+        CreateTaskAsync(new DueTask("inbox", name, date), cancellationToken);
+
     private static StringContent CreateJsonContent(object payload)
     {
         var json = JsonSerializer.Serialize(payload);

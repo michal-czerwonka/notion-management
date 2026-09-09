@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { createInboxItem, getInbox, updateInboxItem, type InboxItem } from '../api/inbox';
+import { createInboxItem, getInbox, moveInboxItemToTasks, updateInboxItem, type InboxItem } from '../api/inbox';
 
 export function InboxPage() {
   const [items, setItems] = useState<InboxItem[]>([]);
@@ -13,6 +13,8 @@ export function InboxPage() {
   const [editingName, setEditingName] = useState('');
   const [editingError, setEditingError] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [movingId, setMovingId] = useState<string | null>(null);
+  const [movingError, setMovingError] = useState<{ id: string; message: string } | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const editInput = useRef<HTMLInputElement>(null);
   const submitting = useRef(false);
@@ -95,6 +97,26 @@ export function InboxPage() {
     }
   }
 
+  async function moveToTasks(item: InboxItem) {
+    if (movingId || updatingId) return;
+
+    setMovingId(item.id);
+    setMovingError(null);
+    setNotice('');
+    try {
+      await moveInboxItemToTasks(item.id);
+      setItems(current => current.filter(existing => existing.id !== item.id));
+      setNotice('Przeniesiono do Zadań na dzisiaj.');
+    } catch (error) {
+      setMovingError({
+        id: item.id,
+        message: error instanceof Error ? error.message : 'Nie udało się przenieść wpisu.',
+      });
+    } finally {
+      setMovingId(null);
+    }
+  }
+
   return (
     <>
       <header className="page-header">
@@ -133,6 +155,7 @@ export function InboxPage() {
         {items.length > 0 && <ul>{items.map(item => {
           const isEditing = editingId === item.id;
           const isUpdating = updatingId === item.id;
+          const isMoving = movingId === item.id;
           return <li key={item.id} className={isEditing ? 'editing-item' : undefined}>
             <span className="item-dot" aria-hidden="true" />
             <div className="item-content">
@@ -149,10 +172,17 @@ export function InboxPage() {
                 </div>
               </> : <>
                 <span className="item-name">{item.name || '(bez nazwy)'}</span>
-                <button className="edit-button" type="button" disabled={editingId !== null || updatingId !== null}
-                  aria-label={`Edytuj wpis: ${item.name || 'bez nazwy'}`} onClick={() => startEditing(item)}>
-                  <span aria-hidden="true">✎</span><span>Edytuj</span>
-                </button>
+                <div className="item-actions">
+                  <button className="move-button" type="button" disabled={editingId !== null || updatingId !== null || movingId !== null}
+                    aria-label={`Przenieś wpis do zadań: ${item.name || 'bez nazwy'}`} onClick={() => void moveToTasks(item)}>
+                    <span aria-hidden="true">→</span><span>{isMoving ? 'Przenoszenie…' : 'Do zadań'}</span>
+                  </button>
+                  <button className="edit-button" type="button" disabled={editingId !== null || updatingId !== null || movingId !== null}
+                    aria-label={`Edytuj wpis: ${item.name || 'bez nazwy'}`} onClick={() => startEditing(item)}>
+                    <span aria-hidden="true">✎</span><span>Edytuj</span>
+                  </button>
+                </div>
+                {movingError?.id === item.id && <p className="item-error" role="alert">{movingError.message}</p>}
               </>}
             </div>
           </li>;
