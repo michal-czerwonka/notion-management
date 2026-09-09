@@ -45,6 +45,8 @@ li + li { border-top: 1px solid #eee9f2; }
 .item-actions { display: flex; gap: 8px; flex-shrink: 0; }
 .move-button { min-height: 40px; padding: 0 14px; background: #e6f2e8; color: #27653a; font-size: 14px; flex-shrink: 0; display: inline-flex; align-items: center; gap: 7px; }
 .move-button:not(:disabled):hover { background: #d4e9d8; }
+.delete-button { min-height: 40px; padding: 0 14px; background: #fde9e7; color: #8f2923; font-size: 14px; flex-shrink: 0; display: inline-flex; align-items: center; gap: 7px; }
+.delete-button:not(:disabled):hover { background: #f9d7d3; }
 .editing-item { background: #fcfaff; }
 .editing-item .item-content { display: block; }
 .editing-item input { display: block; }

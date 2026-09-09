@@ -51,6 +51,12 @@ Content-Type: application/json
 Odpowiedź `200`: `{ "id": "notion-page-id", "name": "Poprawiona myśl" }`. Endpoint aktualizuje wyłącznie strony należące do Inbox; dla obcego lub usuniętego wpisu zwraca `404`.
 
 ```http
+DELETE /api/inbox/a9cea60dda62442e/{notion-page-id}
+```
+
+Odpowiedź `204`. Endpoint przenosi wyłącznie wpis należący do Inbox do kosza Notion; dla obcego lub już usuniętego wpisu zwraca `404`.
+
+```http
 POST /api/inbox/a9cea60dda62442e/{notion-page-id}/move-to-tasks
 ```
 

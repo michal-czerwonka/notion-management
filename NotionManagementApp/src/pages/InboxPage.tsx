@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { createInboxItem, getInbox, moveInboxItemToTasks, updateInboxItem, type InboxItem } from '../api/inbox';
+import { createInboxItem, deleteInboxItem, getInbox, moveInboxItemToTasks, updateInboxItem, type InboxItem } from '../api/inbox';
 
 export function InboxPage() {
   const [items, setItems] = useState<InboxItem[]>([]);
@@ -15,6 +15,8 @@ export function InboxPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [movingId, setMovingId] = useState<string | null>(null);
   const [movingError, setMovingError] = useState<{ id: string; message: string } | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingError, setDeletingError] = useState<{ id: string; message: string } | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const editInput = useRef<HTMLInputElement>(null);
   const submitting = useRef(false);
@@ -98,7 +100,7 @@ export function InboxPage() {
   }
 
   async function moveToTasks(item: InboxItem) {
-    if (movingId || updatingId) return;
+    if (movingId || deletingId || updatingId) return;
 
     setMovingId(item.id);
     setMovingError(null);
@@ -114,6 +116,26 @@ export function InboxPage() {
       });
     } finally {
       setMovingId(null);
+    }
+  }
+
+  async function deleteItem(item: InboxItem) {
+    if (movingId || deletingId || updatingId) return;
+
+    setDeletingId(item.id);
+    setDeletingError(null);
+    setNotice('');
+    try {
+      await deleteInboxItem(item.id);
+      setItems(current => current.filter(existing => existing.id !== item.id));
+      setNotice('Usunięto wpis z Inbox.');
+    } catch (error) {
+      setDeletingError({
+        id: item.id,
+        message: error instanceof Error ? error.message : 'Nie udało się usunąć wpisu.',
+      });
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -156,6 +178,7 @@ export function InboxPage() {
           const isEditing = editingId === item.id;
           const isUpdating = updatingId === item.id;
           const isMoving = movingId === item.id;
+          const isDeleting = deletingId === item.id;
           return <li key={item.id} className={isEditing ? 'editing-item' : undefined}>
             <span className="item-dot" aria-hidden="true" />
             <div className="item-content">
@@ -173,16 +196,21 @@ export function InboxPage() {
               </> : <>
                 <span className="item-name">{item.name || '(bez nazwy)'}</span>
                 <div className="item-actions">
-                  <button className="move-button" type="button" disabled={editingId !== null || updatingId !== null || movingId !== null}
+                  <button className="move-button" type="button" disabled={editingId !== null || updatingId !== null || movingId !== null || deletingId !== null}
                     aria-label={`Przenieś wpis do zadań: ${item.name || 'bez nazwy'}`} onClick={() => void moveToTasks(item)}>
                     <span aria-hidden="true">→</span><span>{isMoving ? 'Przenoszenie…' : 'Do zadań'}</span>
                   </button>
-                  <button className="edit-button" type="button" disabled={editingId !== null || updatingId !== null || movingId !== null}
+                  <button className="edit-button" type="button" disabled={editingId !== null || updatingId !== null || movingId !== null || deletingId !== null}
                     aria-label={`Edytuj wpis: ${item.name || 'bez nazwy'}`} onClick={() => startEditing(item)}>
                     <span aria-hidden="true">✎</span><span>Edytuj</span>
                   </button>
+                  <button className="delete-button" type="button" disabled={editingId !== null || updatingId !== null || movingId !== null || deletingId !== null}
+                    aria-label={`Usuń wpis: ${item.name || 'bez nazwy'}`} onClick={() => void deleteItem(item)}>
+                    <span aria-hidden="true">×</span><span>{isDeleting ? 'Usuwanie…' : 'Usuń'}</span>
+                  </button>
                 </div>
                 {movingError?.id === item.id && <p className="item-error" role="alert">{movingError.message}</p>}
+                {deletingError?.id === item.id && <p className="item-error" role="alert">{deletingError.message}</p>}
               </>}
             </div>
           </li>;
