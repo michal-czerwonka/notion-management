@@ -1,0 +1,99 @@
+name: Deploy Function App (dev)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-function-app-dev
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Sign in to Azure with OpenID Connect
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Validate deployment configuration
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          test -n "$NOTION_TOKEN"
+          test -n "$NTFY_TOPIC"
+          jq -e '.azure.subscriptionId and .azure.resourceGroupName and .azure.functionAppName' deployment/config/development.json > /dev/null
+
+      - name: Configure Function App settings
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          config=deployment/config/development.json
+          resource_group=$(jq -r '.azure.resourceGroupName' "$config")
+          function_app=$(jq -r '.azure.functionAppName' "$config")
+
+          az functionapp config appsettings set \
+            --resource-group "$resource_group" \
+            --name "$function_app" \
+            --settings \
+              "FUNCTIONS_WORKER_RUNTIME=$(jq -r '.functionApp.runtime' "$config")" \
+              "FUNCTIONS_EXTENSION_VERSION=$(jq -r '.functionApp.functionsExtensionVersion' "$config")" \
+              "WEBSITE_TIME_ZONE=$(jq -r '.functionApp.timeZone' "$config")" \
+              "Scheduler__Schedule=$(jq -r '.functionApp.schedulerSchedule' "$config")" \
+              "Scheduler__TimeZone=$(jq -r '.functionApp.schedulerTimeZone' "$config")" \
+              "Tasks__FilePath=$(jq -r '.functionApp.tasksFilePath' "$config")" \
+              "Notifications__Schedule=$(jq -r '.functionApp.notificationsSchedule' "$config")" \
+              "Notion__DataSourceId=$(jq -r '.functionApp.notionDataSourceId' "$config")" \
+              "Notion__InboxDataSourceId=$(jq -r '.functionApp.notionInboxDataSourceId' "$config")" \
+              "Notion__TodayViewId=$(jq -r '.functionApp.notionTodayViewId' "$config")" \
+              "Notion__TodayViewName=$(jq -r '.functionApp.notionTodayViewName' "$config")" \
+              "Notion__Token=$NOTION_TOKEN" \
+              "Ntfy__BaseUrl=$(jq -r '.functionApp.ntfyBaseUrl' "$config")" \
+              "Ntfy__Topic=$NTFY_TOPIC" \
+            --output none
+
+          while IFS= read -r origin; do
+            az functionapp cors add \
+              --resource-group "$resource_group" \
+              --name "$function_app" \
+              --allowed-origins "$origin" \
+              --output none
+          done < <(jq -r '.functionApp.corsAllowedOrigins[]' "$config")
+
+      - name: Publish Function App
+        run: |
+          dotnet publish NotionManagementFunctionApp/NotionManagementFunctionApp.csproj \
+            --configuration Release \
+            --output artifacts/function-app/publish
+          (
+            cd artifacts/function-app/publish
+            zip -r ../function-app.zip .
+          )
+
+          config=deployment/config/development.json
+          az functionapp deployment source config-zip \
+            --resource-group "$(jq -r '.azure.resourceGroupName' "$config")" \
+            --name "$(jq -r '.azure.functionAppName' "$config")" \
+            --src artifacts/function-app/function-app.zip \
+            --output none
+
+      - name: Verify deployed Inbox API
+        run: |
+          endpoint=$(jq -r '.android.developmentApiUrl' deployment/config/development.json)
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 "$endpoint" > /dev/null

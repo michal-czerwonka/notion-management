@@ -28,7 +28,7 @@ $InboxAllowedOrigins = @("https://localhost") # Capacitor Android WebView origin
 $NotionTodayViewId = "34e8bc0919d380c595f1000c54fb8ad5"
 $NotionTodayViewName = "Na dzisiaj"
 $NtfyBaseUrl = "https://ntfy.sh"
-$NtfyTopic = "CHPqQe5yp12AJiv1" # Fill with your private, hard-to-guess ntfy topic name.
+$NtfyTopic = $env:NTFY_TOPIC
 
 # Prefer setting secrets in the current PowerShell session instead of writing them
 # into this file:
