@@ -117,7 +117,7 @@ public sealed class NotionInboxItemsClient
 
         using var request = NotionApi.CreateRequest(HttpMethod.Patch,
             $"pages/{Uri.EscapeDataString(id)}", _token,
-            JsonContent.Create(new { archived = true }));
+            JsonContent.Create(new { in_trash = true }));
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
     }
