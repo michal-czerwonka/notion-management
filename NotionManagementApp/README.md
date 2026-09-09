@@ -75,6 +75,8 @@ W pliku `development-phone` ustaw rzeczywisty publiczny adres Function App. Wart
 
 Projekt `android/` jest w repozytorium, więc nie uruchamiaj `cap add android`. Skrypt sam instaluje zależności npm, jeśli ich nie ma, buduje frontend z właściwym profilem, wykonuje `cap sync android`, buduje debug APK przez Gradle Wrapper i otwiera folder wyniku w Eksploratorze Windows. Wymaga JDK 21 ustawionego w `JAVA_HOME`; wbudowane JBR Android Studio ma obecnie Javę 25 i nie współpracuje z używaną wersją Gradle.
 
+Żeby lokalne APK aktualizowało APK z GitHub Actions, oba buildy muszą używać tego samego klucza. Po utworzeniu developerskiego keystore skopiuj `android/signing.properties.example` jako `android/signing.properties` i uzupełnij hasła oraz alias tego keystore. Plik i klucz są ignorowane przez Git. Bez tego pliku lokalny build nadal korzysta z domyślnego klucza debug i nie zaktualizuje aplikacji podpisanej przez pipeline.
+
 Build dla lokalnego emulatora — wcześniej uruchom `Start-LocalFunctionApp.ps1`:
 
 ```powershell

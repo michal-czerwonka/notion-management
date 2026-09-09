@@ -1,0 +1,6 @@
+# Copy this file to signing.properties and replace every placeholder.
+# The keystore and signing.properties are intentionally ignored by Git.
+storeFile=keystore/notion-management-dev.jks
+storePassword=TODO_STORE_PASSWORD
+keyAlias=notion-management-dev
+keyPassword=TODO_KEY_PASSWORD

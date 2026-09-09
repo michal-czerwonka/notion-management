@@ -29,14 +29,37 @@ Create these at **Settings → Secrets and variables → Actions → Secrets**:
 - `GOOGLE_DRIVE_CLIENT_ID` — OAuth client ID used to upload APK files.
 - `GOOGLE_DRIVE_CLIENT_SECRET` — OAuth client secret used to refresh Google Drive access.
 - `GOOGLE_DRIVE_REFRESH_TOKEN` — OAuth refresh token authorized for the target Google Drive account.
+- `GOOGLE_DRIVE_APK_FOLDER_ID` — ID of the Google Drive folder where development APK files are stored.
+- `ANDROID_DEV_KEYSTORE_BASE64` — Base64-encoded development keystore file.
+- `ANDROID_DEV_KEYSTORE_PASSWORD` — password protecting the development keystore.
+- `ANDROID_DEV_KEY_ALIAS` — alias of the development signing key.
+- `ANDROID_DEV_KEY_PASSWORD` — password protecting the development signing key.
 
 Repository secrets work in private repositories on GitHub Free. GitHub Free does not provide environment secrets for private repositories, so this project deliberately uses repository secrets rather than a GitHub Environment.
 
-Create this repository secret at **Settings → Secrets and variables → Actions → Secrets**:
-
-- `GOOGLE_DRIVE_APK_FOLDER_ID` — ID of the Google Drive folder where development APK files are stored.
-
 Do not store the refresh token in the repository or `development.json`. When the OAuth application is in Google testing mode, refresh tokens expire after seven days and `GOOGLE_DRIVE_REFRESH_TOKEN` must be replaced after a new authorization.
+
+## Android development signing key
+
+Generate one development keystore locally and keep it indefinitely. Do not use the default Gradle debug keystore: each clean GitHub-hosted runner creates its own key, so Android rejects it as an update to an APK built elsewhere.
+
+From the repository root, run the following command and choose strong passwords when prompted:
+
+```powershell
+New-Item -ItemType Directory -Force NotionManagementApp\android\keystore
+keytool -genkeypair -v -keystore NotionManagementApp\android\keystore\notion-management-dev.jks -alias notion-management-dev -keyalg RSA -keysize 4096 -validity 10000
+```
+
+Copy `NotionManagementApp/android/signing.properties.example` to `NotionManagementApp/android/signing.properties`, then replace the password placeholders and alias with the values selected above. Both paths are ignored by Git.
+
+Create `ANDROID_DEV_KEYSTORE_BASE64` from the keystore without committing or printing it to a terminal:
+
+```powershell
+$keystoreBytes = [System.IO.File]::ReadAllBytes('NotionManagementApp\android\keystore\notion-management-dev.jks')
+[Convert]::ToBase64String($keystoreBytes) | Set-Clipboard
+```
+
+Paste the clipboard content into the GitHub Secret, then add the three password and alias secrets. The next GitHub Android build is the first one signed with this key. Before installing it, uninstall any copy signed by the old local or GitHub default debug key. Future local and GitHub builds using this configuration update each other normally.
 
 ## Azure OpenID Connect setup
 
@@ -57,8 +80,9 @@ If Azure denies a required operation, expand the role only for that operation an
 1. GitHub installs Node.js 24, JDK 21 and Android SDK API 36.
 2. It installs npm dependencies from the lockfile.
 3. It writes a temporary `.env.development-phone` from `development.json`; this file is ignored and never committed.
-4. Vite builds the web application, Capacitor synchronizes the Android project, and the Gradle Wrapper builds a debug APK.
-5. GitHub publishes the APK as `NotionManagementApp-dev-debug-apk` for seven days.
-6. It refreshes a short-lived Google access token and uploads a uniquely named APK to the configured Google Drive folder.
+4. It restores the development signing keystore from GitHub Secrets.
+5. Vite builds the web application, Capacitor synchronizes the Android project, and the Gradle Wrapper builds a signed debug APK.
+6. GitHub publishes the APK as `NotionManagementApp-dev-debug-apk` for seven days.
+7. It refreshes a short-lived Google access token and uploads a uniquely named APK to the configured Google Drive folder.
 
 The APK is debug-signed. It is suitable for manual installation and development testing, not for Play Store distribution.

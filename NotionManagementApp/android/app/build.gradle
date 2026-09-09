@@ -1,5 +1,25 @@
 apply plugin: 'com.android.application'
 
+import java.util.Properties
+
+def localSigningProperties = new Properties()
+def localSigningPropertiesFile = rootProject.file('signing.properties')
+if (localSigningPropertiesFile.exists()) {
+    localSigningPropertiesFile.withInputStream { localSigningProperties.load(it) }
+}
+
+def signingValues = [
+    storeFile    : System.getenv('ANDROID_DEV_KEYSTORE_PATH') ?: localSigningProperties.getProperty('storeFile'),
+    storePassword: System.getenv('ANDROID_DEV_KEYSTORE_PASSWORD') ?: localSigningProperties.getProperty('storePassword'),
+    keyAlias     : System.getenv('ANDROID_DEV_KEY_ALIAS') ?: localSigningProperties.getProperty('keyAlias'),
+    keyPassword  : System.getenv('ANDROID_DEV_KEY_PASSWORD') ?: localSigningProperties.getProperty('keyPassword')
+]
+def providedSigningValueCount = signingValues.count { _, value -> value?.trim() }
+if (providedSigningValueCount > 0 && providedSigningValueCount < signingValues.size()) {
+    throw new GradleException('Development APK signing configuration is incomplete.')
+}
+def hasDevelopmentSigning = providedSigningValueCount == signingValues.size()
+
 android {
     namespace = "pl.notionmanagement.inbox"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -15,7 +35,27 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    if (hasDevelopmentSigning) {
+        def keyStoreFile = rootProject.file(signingValues.storeFile)
+        if (!keyStoreFile.isFile()) {
+            throw new GradleException("Development keystore was not found: $keyStoreFile")
+        }
+
+        signingConfigs {
+            development {
+                storeFile keyStoreFile
+                storePassword signingValues.storePassword
+                keyAlias signingValues.keyAlias
+                keyPassword signingValues.keyPassword
+            }
+        }
+    }
     buildTypes {
+        debug {
+            if (hasDevelopmentSigning) {
+                signingConfig signingConfigs.development
+            }
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'

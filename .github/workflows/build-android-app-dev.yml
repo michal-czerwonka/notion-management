@@ -39,8 +39,30 @@ jobs:
         working-directory: NotionManagementApp
         run: npm ci
 
+      - name: Restore development APK signing key
+        env:
+          ANDROID_DEV_KEYSTORE_BASE64: ${{ secrets.ANDROID_DEV_KEYSTORE_BASE64 }}
+          ANDROID_DEV_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_DEV_KEYSTORE_PASSWORD }}
+          ANDROID_DEV_KEY_ALIAS: ${{ secrets.ANDROID_DEV_KEY_ALIAS }}
+          ANDROID_DEV_KEY_PASSWORD: ${{ secrets.ANDROID_DEV_KEY_PASSWORD }}
+        run: |
+          test -n "$ANDROID_DEV_KEYSTORE_BASE64"
+          test -n "$ANDROID_DEV_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_DEV_KEY_ALIAS"
+          test -n "$ANDROID_DEV_KEY_PASSWORD"
+
+          keystore_path=NotionManagementApp/android/keystore/notion-management-dev.jks
+          mkdir -p "$(dirname "$keystore_path")"
+          printf '%s' "$ANDROID_DEV_KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
+          keytool -list -keystore "$keystore_path" -storepass "$ANDROID_DEV_KEYSTORE_PASSWORD" -alias "$ANDROID_DEV_KEY_ALIAS" > /dev/null
+
       - name: Build Android debug APK
         working-directory: NotionManagementApp
+        env:
+          ANDROID_DEV_KEYSTORE_PATH: keystore/notion-management-dev.jks
+          ANDROID_DEV_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_DEV_KEYSTORE_PASSWORD }}
+          ANDROID_DEV_KEY_ALIAS: ${{ secrets.ANDROID_DEV_KEY_ALIAS }}
+          ANDROID_DEV_KEY_PASSWORD: ${{ secrets.ANDROID_DEV_KEY_PASSWORD }}
         run: |
           api_url=$(jq -r '.android.developmentApiUrl' ../deployment/config/development.json)
           printf 'VITE_INBOX_API_URL=%s\n' "$api_url" > .env.development-phone

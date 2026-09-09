@@ -21,4 +21,8 @@ dist/
 .local/
 artifacts/
 
+# Android development signing material.
+NotionManagementApp/android/signing.properties
+NotionManagementApp/android/keystore/
+
 .idea
