@@ -31,10 +31,8 @@ Gradle does not need a separate installation because the project includes the Gr
 
 ### Deployment to Azure
 
-- **PowerShell** — runs `NotionManagementFunctionApp/deploy.ps1`.
-- **Azure CLI (`az`)** — authenticates with Azure, configures Function App settings and CORS, and reads Azure resource data used by the deployment script.
-- **.NET SDK 10** and **Azure Functions Core Tools v4** — also required by the deployment script to build and publish the Function App.
-- **Azure account with access to the existing resource group, Function App and Application Insights resource** — required by `az login` and the script. The script does not create Azure infrastructure.
+- **GitHub repository secrets and Azure OpenID Connect configuration** — authenticate the manual GitHub Actions deployment workflows.
+- **Azure resources** — the resource group, Function App, storage account, Log Analytics workspace and Application Insights resource must already exist. The workflows do not create infrastructure.
 
 Docker remains optional, for isolated builds only. It is not needed to run the Function App, frontend, Azurite, Android Studio, or deployment workflow locally.
 
@@ -105,31 +103,14 @@ Created tasks set these Notion properties:
 
 Use the manual GitHub Actions workflows for development deployments. Their configuration, secret setup, Azure OIDC setup and detailed build/deployment process are documented in [deployment/README.md](deployment/README.md).
 
-For a manual deployment from Windows, use `deployment/Deploy-FunctionApp.ps1`. It reads non-secret configuration from `deployment/config/development.json` and prompts for `NOTION_TOKEN` and `NTFY_TOPIC` when they are not present in the current environment.
-
-Do not write the Notion token into the script. Set it for the current PowerShell session:
-
-```powershell
-$env:NOTION_TOKEN = "secret_xxx"
-.\deployment\Deploy-FunctionApp.ps1
-```
-
-The script does not create Azure infrastructure. The resource group, storage account, Function App, Log Analytics workspace, and Application Insights resource must already exist. The script checks only the existing Function App, configures app settings, builds the solution, and publishes the function app.
-
 ## Application Insights
 
-Azure resources are created manually. The deployment workflow and `deployment/Deploy-FunctionApp.ps1` expect these resources to already exist:
+Azure resources are created manually. The deployment workflow expects these resources to already exist:
 
 - Log Analytics workspace: `notion-management-law`.
 - Workspace-based Application Insights resource: `notion-management-ai`.
 
-The script does not query Application Insights during deployment. Set the connection string manually in Azure Function App Settings, or provide it only when you want the script to update it:
-
-```powershell
-$env:APPLICATIONINSIGHTS_CONNECTION_STRING = "InstrumentationKey=...;IngestionEndpoint=..."
-```
-
-The deployment workflow and `deployment/Deploy-FunctionApp.ps1` leave the existing Application Insights app setting unchanged.
+The deployment workflow leaves the existing Application Insights app setting unchanged.
 
 The Function App sends application logs directly from the isolated worker to Application Insights. The configuration keeps `ILogger` information logs and exceptions, while filtering dependency and request telemetry emitted by the worker. Host-level dependency tracking and performance counter collection are disabled in `host.json` to keep telemetry volume low.
 
@@ -224,12 +205,3 @@ Invoke-RestMethod `
   -Headers @{ Title = "Zadania na dzisiaj" } `
   -Body "Zadania na dzisiaj: 1`n`n• Test"
 ```
-
-8. To deploy these settings manually, set the secrets in the current PowerShell session:
-
-```powershell
-$env:NOTION_TOKEN = "secret_xxx"
-.\deployment\Deploy-FunctionApp.ps1
-```
-
-Set `NTFY_TOPIC` in the current PowerShell session before running the script.

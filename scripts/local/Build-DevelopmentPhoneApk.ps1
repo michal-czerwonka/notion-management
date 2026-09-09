@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param()
 
-$buildScriptPath = Join-Path $PSScriptRoot 'Build-AndroidApk.ps1'
+$buildScriptPath = Join-Path $PSScriptRoot 'shared\Build-AndroidApk.ps1'
 
 try {
     & $buildScriptPath -Target DevelopmentPhone

@@ -8,7 +8,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$repositoryRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+$repositoryRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
 $appPath = Join-Path $repositoryRoot 'NotionManagementApp'
 $environmentFile = switch ($Target) {
     'LocalEmulator' { '.env.local-emulator' }
@@ -17,14 +17,6 @@ $environmentFile = switch ($Target) {
 $outputDirectory = Join-Path $repositoryRoot 'artifacts\android'
 $sourceApkPath = Join-Path $appPath 'android\app\build\outputs\apk\debug\app-debug.apk'
 $outputApkPath = Join-Path $outputDirectory "NotionManagementApp-$($Target.ToLowerInvariant())-debug.apk"
-
-function Require-Command {
-    param([Parameter(Mandatory = $true)][string]$Name)
-
-    if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
-        throw "Required command '$Name' was not found on PATH."
-    }
-}
 
 function Ensure-JavaAvailable {
     if (-not (Get-Command 'java' -ErrorAction SilentlyContinue)) {
@@ -53,6 +45,7 @@ function Ensure-JavaAvailable {
     throw 'Could not determine the active Java version. Set JAVA_HOME to a JDK 21 installation.'
 }
 
+. (Join-Path $PSScriptRoot 'LocalTools.ps1')
 Require-Command 'npm'
 Ensure-JavaAvailable
 

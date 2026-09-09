@@ -22,7 +22,7 @@ Dodaj/rozszerz sekcję `Host` obok `Values`, zachowując istniejące ustawienia:
 
 Plik `local.settings.json.example` zawiera wzór konfiguracji dla świeżego checkoutu (z wyłączonymi timerami). Nie nadpisuj nim istniejących ustawień. Przy `UseDevelopmentStorage=true` uruchom lokalny Azurite. Wymagane: .NET 10 SDK i Azure Functions Core Tools v4.
 
-Z katalogu głównego repozytorium uruchom `scripts\local\Start-LocalFunctionApp.ps1`. Skrypt uruchamia Azurite w tle i Function App na `http://127.0.0.1:7071`. Po zakończeniu pracy zatrzymaj Azurite przez `scripts\local\Stop-LocalAzurite.ps1`.
+Z katalogu głównego repozytorium uruchom `scripts\local\Start-LocalFunctionApp.ps1`. Skrypt uruchamia Azurite w tle i Function App na `http://127.0.0.1:7071`. Po zakończeniu pracy zatrzyma również Azurite, jeśli uruchomił go sam.
 
 Kontrakt endpointów:
 
@@ -50,7 +50,7 @@ Content-Type: application/json
 
 Odpowiedź `200`: `{ "id": "notion-page-id", "name": "Poprawiona myśl" }`. Endpoint aktualizuje wyłącznie strony należące do Inbox; dla obcego lub usuniętego wpisu zwraca `404`.
 
-W Azure ustaw `Notion__InboxDataSourceId`. Możesz też wypełnić `$NotionInboxDataSourceId` w `deploy.ps1`; pusta wartość pozostawia istniejące ustawienie Azure bez zmian. Skrypt dodaje do CORS origin Androida `https://localhost`. Dla lokalnego frontendu korzystającego z Azure dodaj również `http://127.0.0.1:5173` do `$InboxAllowedOrigins` albo w panelu CORS Function App. CORS dotyczy całej Function App; istniejące originy pozostają zachowane.
+W Azure ustaw `Notion__InboxDataSourceId` przez workflow `Deploy Function App (dev)`. Skonfigurowany origin Androida to `https://localhost`. Dla lokalnego frontendu korzystającego z Azure dodaj również `http://127.0.0.1:5173` w CORS Function App. CORS dotyczy całej Function App; istniejące originy pozostają zachowane.
 
 **MVP:** endpointy są anonimowe. Losowy fragment ścieżki utrudnia zgadywanie, ale jest widoczny w APK i ruchu sieciowym. Każdy znający URL może czytać i dodawać wpisy. TODO docelowej autoryzacji znajduje się w `NotionInboxItemFunctions.cs` i `src/api/inbox.ts`. Nie umieszczaj klucza Function App ani tokena Notion w aplikacji.
 
