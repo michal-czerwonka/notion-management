@@ -103,20 +103,22 @@ Created tasks set these Notion properties:
 
 ## Deployment
 
-Use `NotionManagementFunctionApp/deploy.ps1` from the function app directory. Fill the configuration section first, especially `SubscriptionId`, `ResourceGroupName`, and `FunctionAppName`.
+Use the manual GitHub Actions workflows for development deployments. Their configuration, secret setup, Azure OIDC setup and detailed build/deployment process are documented in [deployment/README.md](deployment/README.md).
+
+For a manual deployment from Windows, use `deployment/Deploy-FunctionApp.ps1`. It reads non-secret configuration from `deployment/config/development.json` and prompts for `NOTION_TOKEN` and `NTFY_TOPIC` when they are not present in the current environment.
 
 Do not write the Notion token into the script. Set it for the current PowerShell session:
 
 ```powershell
 $env:NOTION_TOKEN = "secret_xxx"
-.\deploy.ps1
+.\deployment\Deploy-FunctionApp.ps1
 ```
 
 The script does not create Azure infrastructure. The resource group, storage account, Function App, Log Analytics workspace, and Application Insights resource must already exist. The script checks only the existing Function App, configures app settings, builds the solution, and publishes the function app.
 
 ## Application Insights
 
-Azure resources are created manually. `deploy.ps1` expects these resources to already exist:
+Azure resources are created manually. The deployment workflow and `deployment/Deploy-FunctionApp.ps1` expect these resources to already exist:
 
 - Log Analytics workspace: `notion-management-law`.
 - Workspace-based Application Insights resource: `notion-management-ai`.
@@ -127,7 +129,7 @@ The script does not query Application Insights during deployment. Set the connec
 $env:APPLICATIONINSIGHTS_CONNECTION_STRING = "InstrumentationKey=...;IngestionEndpoint=..."
 ```
 
-If `APPLICATIONINSIGHTS_CONNECTION_STRING` is not provided, `deploy.ps1` leaves the existing Azure app setting unchanged.
+The deployment workflow and `deployment/Deploy-FunctionApp.ps1` leave the existing Application Insights app setting unchanged.
 
 The Function App sends application logs directly from the isolated worker to Application Insights. The configuration keeps `ILogger` information logs and exceptions, while filtering dependency and request telemetry emitted by the worker. Host-level dependency tracking and performance counter collection are disabled in `host.json` to keep telemetry volume low.
 
@@ -223,11 +225,11 @@ Invoke-RestMethod `
   -Body "Zadania na dzisiaj: 1`n`n• Test"
 ```
 
-8. To deploy these settings with `deploy.ps1`, set the Notion secret in the current PowerShell session:
+8. To deploy these settings manually, set the secrets in the current PowerShell session:
 
 ```powershell
 $env:NOTION_TOKEN = "secret_xxx"
-.\deploy.ps1
+.\deployment\Deploy-FunctionApp.ps1
 ```
 
-Fill `$NtfyTopic` in `deploy.ps1` before running it.
+Set `NTFY_TOPIC` in the current PowerShell session before running the script.

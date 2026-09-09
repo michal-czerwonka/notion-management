@@ -41,6 +41,15 @@ Content-Type: application/json
 
 Odpowiedź `201`: `{ "id": "notion-page-id", "name": "Moja myśl" }`. Backend usuwa białe znaki z początku i końca oraz wymaga 1–2000 znaków. `400` oznacza błędne dane, `503` brak konfiguracji, `502` błąd komunikacji/odpowiedzi Notion, `504` timeout. Błędy mają postać `{ "error": "..." }` i nie ujawniają odpowiedzi Notion ani sekretów. POST nie jest automatycznie ponawiany; przy utracie potwierdzenia sprawdź listę przed ponownym zapisem.
 
+```http
+PATCH /api/inbox/a9cea60dda62442e/{notion-page-id}
+Content-Type: application/json
+
+{ "name": "Poprawiona myśl" }
+```
+
+Odpowiedź `200`: `{ "id": "notion-page-id", "name": "Poprawiona myśl" }`. Endpoint aktualizuje wyłącznie strony należące do Inbox; dla obcego lub usuniętego wpisu zwraca `404`.
+
 W Azure ustaw `Notion__InboxDataSourceId`. Możesz też wypełnić `$NotionInboxDataSourceId` w `deploy.ps1`; pusta wartość pozostawia istniejące ustawienie Azure bez zmian. Skrypt dodaje do CORS origin Androida `https://localhost`. Dla lokalnego frontendu korzystającego z Azure dodaj również `http://127.0.0.1:5173` do `$InboxAllowedOrigins` albo w panelu CORS Function App. CORS dotyczy całej Function App; istniejące originy pozostają zachowane.
 
 **MVP:** endpointy są anonimowe. Losowy fragment ścieżki utrudnia zgadywanie, ale jest widoczny w APK i ruchu sieciowym. Każdy znający URL może czytać i dodawać wpisy. TODO docelowej autoryzacji znajduje się w `NotionInboxItemFunctions.cs` i `src/api/inbox.ts`. Nie umieszczaj klucza Function App ani tokena Notion w aplikacji.

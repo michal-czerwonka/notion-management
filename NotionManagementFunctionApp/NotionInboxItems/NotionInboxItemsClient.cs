@@ -74,6 +74,47 @@ public sealed class NotionInboxItemsClient
         return ReadItem(document.RootElement);
     }
 
+    public async Task<NotionInboxItem> UpdateItemAsync(string id, string name, CancellationToken cancellationToken)
+    {
+        EnsureConfigured();
+        await EnsureItemBelongsToInboxAsync(id, cancellationToken);
+
+        using var request = NotionApi.CreateRequest(HttpMethod.Patch,
+            $"pages/{Uri.EscapeDataString(id)}", _token,
+            JsonContent.Create(new
+            {
+                properties = new Dictionary<string, object> { ["Nazwa"] = NotionApi.TitleProperty(name) }
+            }));
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        using var document = await JsonDocument.ParseAsync(
+            await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+        return ReadItem(document.RootElement);
+    }
+
+    private async Task EnsureItemBelongsToInboxAsync(string id, CancellationToken cancellationToken)
+    {
+        using var request = NotionApi.CreateRequest(HttpMethod.Get,
+            $"pages/{Uri.EscapeDataString(id)}", _token);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            throw new KeyNotFoundException("Inbox item was not found.");
+        }
+
+        response.EnsureSuccessStatusCode();
+        using var document = await JsonDocument.ParseAsync(
+            await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+        var parent = document.RootElement.GetProperty("parent");
+        var isInboxItem = parent.GetProperty("type").GetString() == "data_source_id" &&
+            parent.GetProperty("data_source_id").GetString() == _dataSourceId;
+
+        if (!isInboxItem)
+        {
+            throw new KeyNotFoundException("Inbox item was not found.");
+        }
+    }
+
     private static NotionInboxItem ReadItem(JsonElement page) => new(
         page.GetProperty("id").GetString() ?? throw new JsonException("Missing Notion page id."),
         NotionApi.ReadTitle(page, "Nazwa") ?? "");

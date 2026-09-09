@@ -3,41 +3,49 @@ export interface InboxItem {
   name: string;
 }
 
-async function request(method: 'GET' | 'POST', name?: string, signal?: AbortSignal): Promise<unknown> {
+async function request(method: 'GET' | 'POST' | 'PATCH', name?: string, id?: string, signal?: AbortSignal): Promise<unknown> {
   const endpoint = import.meta.env.VITE_INBOX_API_URL?.trim();
   if (!endpoint) throw new Error('Brak adresu API. Ustaw VITE_INBOX_API_URL i przebuduj aplikację.');
+  const url = id ? `${endpoint}/${encodeURIComponent(id)}` : endpoint;
 
   // TODO: attach a user access token here once backend authentication is implemented.
   // The URL is public configuration, not a substitute for authentication.
   let response: Response;
   try {
-    response = await fetch(endpoint, {
+    response = await fetch(url, {
       method,
-      headers: method === 'POST' ? { 'Content-Type': 'application/json' } : undefined,
-      body: method === 'POST' ? JSON.stringify({ name }) : undefined,
+      headers: method === 'GET' ? undefined : { 'Content-Type': 'application/json' },
+      body: method === 'GET' ? undefined : JSON.stringify({ name }),
       signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(60_000)]) : AbortSignal.timeout(60_000),
       credentials: 'omit',
       cache: 'no-store',
     });
   } catch (error) {
     if (signal?.aborted) throw error;
-    throw new Error(method === 'POST'
+    throw new Error(method === 'GET'
+      ? 'Nie udało się połączyć z API. Sprawdź połączenie i spróbuj ponownie.'
+      : method === 'POST'
       ? 'Nie udało się potwierdzić zapisu. Odśwież listę przed ponownym dodaniem, aby uniknąć duplikatu.'
-      : 'Nie udało się połączyć z API. Sprawdź połączenie i spróbuj ponownie.');
+      : 'Nie udało się zapisać zmian. Spróbuj ponownie.');
   }
 
   if (!response.ok) {
     if (response.status === 400) throw new Error('Wpis musi mieć od 1 do 2000 znaków.');
-    throw new Error(method === 'POST'
+    if (response.status === 404) throw new Error('Ten wpis nie jest już dostępny. Odśwież listę.');
+    throw new Error(method === 'GET'
+      ? 'Nie udało się pobrać Inbox. Spróbuj ponownie później.'
+      : method === 'POST'
       ? 'API nie potwierdziło zapisu. Odśwież listę przed ponownym dodaniem.'
-      : 'Nie udało się pobrać Inbox. Spróbuj ponownie później.');
+      : 'API nie potwierdziło zapisu zmian. Spróbuj ponownie.');
   }
   try {
     return await response.json();
   } catch {
-    throw new Error(method === 'POST'
+    throw new Error(method === 'GET'
+      ? 'API zwróciło nieprawidłową odpowiedź. Spróbuj ponownie później.'
+      : method === 'POST'
       ? 'Nieprawidłowe potwierdzenie zapisu. Odśwież listę przed ponownym dodaniem.'
-      : 'API zwróciło nieprawidłową odpowiedź. Spróbuj ponownie później.');
+      : 'Nieprawidłowe potwierdzenie zapisu zmian. Spróbuj ponownie.');
   }
 }
 
@@ -48,7 +56,7 @@ function isInboxItem(value: unknown): value is InboxItem {
 }
 
 export async function getInbox(signal?: AbortSignal): Promise<InboxItem[]> {
-  const result = await request('GET', undefined, signal);
+  const result = await request('GET', undefined, undefined, signal);
   if (!Array.isArray(result) || !result.every(isInboxItem)) {
     throw new Error('API zwróciło nieprawidłową listę Inbox.');
   }
@@ -58,5 +66,11 @@ export async function getInbox(signal?: AbortSignal): Promise<InboxItem[]> {
 export async function createInboxItem(name: string): Promise<InboxItem> {
   const result = await request('POST', name);
   if (!isInboxItem(result)) throw new Error('Nieprawidłowe potwierdzenie zapisu. Odśwież listę przed ponownym dodaniem.');
+  return result;
+}
+
+export async function updateInboxItem(id: string, name: string): Promise<InboxItem> {
+  const result = await request('PATCH', name, id);
+  if (!isInboxItem(result)) throw new Error('Nieprawidłowe potwierdzenie zapisu zmian. Odśwież listę przed ponowną próbą.');
   return result;
 }

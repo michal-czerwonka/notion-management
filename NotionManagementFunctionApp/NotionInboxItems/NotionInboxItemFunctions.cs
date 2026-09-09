@@ -14,6 +14,7 @@ public sealed class NotionInboxItemFunctions(
 {
     // TODO: replace anonymous access with user authentication. This path is discoverable in the APK.
     private const string Route = "inbox/a9cea60dda62442e";
+    private const string ItemRoute = Route + "/{id}";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     [Function("GetNotionInboxItems")]
@@ -42,9 +43,7 @@ public sealed class NotionInboxItemFunctions(
                     new { error = "Nieprawidłowy JSON. Oczekiwano obiektu z polem name." }, cancellationToken);
             }
 
-            var name = body?.Name?.Trim();
-            // Notion limits a single rich text content value to 2000 characters.
-            if (string.IsNullOrEmpty(name) || name.Length > 2000)
+            if (!TryNormalizeName(body?.Name, out var name))
             {
                 return await WriteJsonAsync(request, HttpStatusCode.BadRequest,
                     new { error = "Wpis musi mieć od 1 do 2000 znaków." }, cancellationToken);
@@ -52,6 +51,34 @@ public sealed class NotionInboxItemFunctions(
 
             var item = await client.CreateItemAsync(name, cancellationToken);
             return await WriteJsonAsync(request, HttpStatusCode.Created, item, cancellationToken);
+        }, cancellationToken);
+
+    [Function("UpdateNotionInboxItem")]
+    public Task<HttpResponseData> PatchAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = ItemRoute)] HttpRequestData request,
+        string id,
+        CancellationToken cancellationToken) => ExecuteAsync(request, async () =>
+        {
+            UpdateNotionInboxItemRequest? body;
+            try
+            {
+                body = await JsonSerializer.DeserializeAsync<UpdateNotionInboxItemRequest>(
+                    request.Body, JsonOptions, cancellationToken);
+            }
+            catch (JsonException)
+            {
+                return await WriteJsonAsync(request, HttpStatusCode.BadRequest,
+                    new { error = "Nieprawidłowy JSON. Oczekiwano obiektu z polem name." }, cancellationToken);
+            }
+
+            if (!TryNormalizeName(body?.Name, out var name))
+            {
+                return await WriteJsonAsync(request, HttpStatusCode.BadRequest,
+                    new { error = "Wpis musi mieć od 1 do 2000 znaków." }, cancellationToken);
+            }
+
+            var item = await client.UpdateItemAsync(id, name, cancellationToken);
+            return await WriteJsonAsync(request, HttpStatusCode.OK, item, cancellationToken);
         }, cancellationToken);
 
     private async Task<HttpResponseData> ExecuteAsync(HttpRequestData request,
@@ -78,6 +105,7 @@ public sealed class NotionInboxItemFunctions(
                 HttpRequestException or JsonException => HttpStatusCode.BadGateway,
                 OperationCanceledException => HttpStatusCode.GatewayTimeout,
                 InvalidOperationException => HttpStatusCode.ServiceUnavailable,
+                KeyNotFoundException => HttpStatusCode.NotFound,
                 _ => HttpStatusCode.InternalServerError
             };
             return await WriteJsonAsync(request, status,
@@ -92,5 +120,11 @@ public sealed class NotionInboxItemFunctions(
         response.Headers.Add("Cache-Control", "no-store");
         await response.WriteAsJsonAsync(body, cancellationToken);
         return response;
+    }
+
+    private static bool TryNormalizeName(string? value, out string name)
+    {
+        name = value?.Trim() ?? string.Empty;
+        return name.Length is > 0 and <= 2000;
     }
 }

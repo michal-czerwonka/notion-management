@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { createInboxItem, getInbox, type InboxItem } from '../api/inbox';
+import { createInboxItem, getInbox, updateInboxItem, type InboxItem } from '../api/inbox';
 
 export function InboxPage() {
   const [items, setItems] = useState<InboxItem[]>([]);
@@ -9,7 +9,12 @@ export function InboxPage() {
   const [loadError, setLoadError] = useState('');
   const [saveError, setSaveError] = useState('');
   const [notice, setNotice] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
+  const [editingError, setEditingError] = useState('');
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  const editInput = useRef<HTMLInputElement>(null);
   const submitting = useRef(false);
 
   async function refresh(signal?: AbortSignal) {
@@ -30,6 +35,10 @@ export function InboxPage() {
     void refresh(controller.signal);
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    editInput.current?.focus();
+  }, [editingId]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -52,6 +61,37 @@ export function InboxPage() {
       submitting.current = false;
       setSaving(false);
       input.current?.focus();
+    }
+  }
+
+  function startEditing(item: InboxItem) {
+    setEditingId(item.id);
+    setEditingName(item.name);
+    setEditingError('');
+    setNotice('');
+  }
+
+  function cancelEditing() {
+    setEditingId(null);
+    setEditingName('');
+    setEditingError('');
+  }
+
+  async function saveEdit(item: InboxItem) {
+    const value = editingName.trim();
+    if (!value || updatingId) return;
+
+    setUpdatingId(item.id);
+    setEditingError('');
+    try {
+      const updatedItem = await updateInboxItem(item.id, value);
+      setItems(current => current.map(existing => existing.id === updatedItem.id ? updatedItem : existing));
+      cancelEditing();
+      setNotice('Zapisano zmiany.');
+    } catch (error) {
+      setEditingError(error instanceof Error ? error.message : 'Nie udało się zapisać zmian.');
+    } finally {
+      setUpdatingId(null);
     }
   }
 
@@ -90,7 +130,33 @@ export function InboxPage() {
         {!loading && !loadError && items.length === 0 && (
           <div className="empty-state"><span aria-hidden="true">✓</span><h3>Miejsce na nowe myśli</h3><p>Inbox jest pusty. Dodaj swój pierwszy wpis powyżej.</p></div>
         )}
-        {items.length > 0 && <ul>{items.map(item => <li key={item.id}><span className="item-dot" aria-hidden="true" /><span>{item.name || '(bez nazwy)'}</span></li>)}</ul>}
+        {items.length > 0 && <ul>{items.map(item => {
+          const isEditing = editingId === item.id;
+          const isUpdating = updatingId === item.id;
+          return <li key={item.id} className={isEditing ? 'editing-item' : undefined}>
+            <span className="item-dot" aria-hidden="true" />
+            <div className="item-content">
+              {isEditing ? <>
+                <label className="sr-only" htmlFor={`edit-${item.id}`}>Edytuj wpis</label>
+                <input ref={editInput} id={`edit-${item.id}`} value={editingName} maxLength={2000}
+                  readOnly={isUpdating} onChange={event => setEditingName(event.target.value)}
+                  onKeyDown={event => { if (event.key === 'Enter') event.preventDefault(); }} />
+                {editingError && <p className="item-error" role="alert">{editingError}</p>}
+                <div className="edit-actions">
+                  <button className="primary" type="button" disabled={!editingName.trim() || isUpdating}
+                    onClick={() => void saveEdit(item)}>{isUpdating ? 'Zapisywanie…' : 'Zapisz'}</button>
+                  <button className="text-button" type="button" disabled={isUpdating} onClick={cancelEditing}>Anuluj</button>
+                </div>
+              </> : <>
+                <span className="item-name">{item.name || '(bez nazwy)'}</span>
+                <button className="edit-button" type="button" disabled={editingId !== null || updatingId !== null}
+                  aria-label={`Edytuj wpis: ${item.name || 'bez nazwy'}`} onClick={() => startEditing(item)}>
+                  <span aria-hidden="true">✎</span><span>Edytuj</span>
+                </button>
+              </>}
+            </div>
+          </li>;
+        })}</ul>}
       </section>
     </>
   );

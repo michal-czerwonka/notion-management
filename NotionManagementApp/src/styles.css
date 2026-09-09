@@ -35,9 +35,20 @@ h2 { font-size: 18px; font-weight: 600; margin: 0; }
 .text-button { background: transparent; color: #67508f; padding: 0 14px; }
 .text-button:not(:disabled):hover { background: #ede7f4; }
 ul { list-style: none; padding: 0; margin: 0; background: #fff; border: 1px solid #e8e2ee; border-radius: 20px; overflow: hidden; }
-li { padding: 20px; display: flex; gap: 14px; align-items: baseline; line-height: 1.55; overflow-wrap: anywhere; white-space: pre-wrap; }
+li { padding: 20px; display: flex; gap: 14px; align-items: flex-start; line-height: 1.55; overflow-wrap: anywhere; white-space: pre-wrap; }
 li + li { border-top: 1px solid #eee9f2; }
 .item-dot { width: 8px; height: 8px; border-radius: 50%; background: #b6a3d0; flex-shrink: 0; }
+.item-content { min-width: 0; flex: 1; display: flex; align-items: center; gap: 12px; }
+.item-name { flex: 1; min-width: 0; }
+.edit-button { min-height: 40px; padding: 0 14px; background: #f4eff8; color: #584274; font-size: 14px; flex-shrink: 0; display: inline-flex; align-items: center; gap: 7px; }
+.edit-button:not(:disabled):hover { background: #e9def2; }
+.editing-item { background: #fcfaff; }
+.editing-item .item-content { display: block; }
+.editing-item input { display: block; }
+.edit-actions { display: flex; gap: 10px; align-items: center; margin-top: 12px; }
+.edit-actions .primary { min-height: 44px; }
+.item-error { color: #922c27; margin: 10px 0 0; font-size: 14px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .empty-state { text-align: center; border: 1px dashed #d9d0e3; border-radius: 20px; padding: 36px 20px; color: #706878; }
 .empty-state > span { display: inline-grid; place-items: center; width: 48px; height: 48px; background: #eae4f1; border-radius: 50%; font-size: 24px; }
 h3 { font-size: 18px; font-weight: 500; color: #403648; margin-bottom: 8px; }
@@ -49,5 +60,7 @@ h3 { font-size: 18px; font-weight: 500; color: #403648; margin-bottom: 8px; }
   .capture-card { padding: 18px; }
   .input-row { flex-direction: column; }
   .primary { align-self: stretch; }
+  .item-content { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .edit-button { align-self: flex-start; }
   .page-header { gap: 12px; }
 }
