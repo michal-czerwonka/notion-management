@@ -3,7 +3,7 @@
 GitHub Actions contains two workflows that run only when manually started from the **Actions** tab on the default branch:
 
 - `Deploy Function App (dev)` configures and deploys the Azure Function App.
-- `Build Android App (dev)` creates a debug APK and exposes it as a GitHub Actions artifact for seven days.
+- `Build Android App (dev)` creates a debug APK, exposes it as a GitHub Actions artifact for seven days, and uploads it to Google Drive.
 
 ## Configuration model
 
@@ -26,8 +26,17 @@ Create these at **Settings → Secrets and variables → Actions → Secrets**:
 - `AZURE_SUBSCRIPTION_ID` — Azure subscription ID.
 - `NOTION_TOKEN` — Notion integration token.
 - `NTFY_TOPIC` — private ntfy topic.
+- `GOOGLE_DRIVE_CLIENT_ID` — OAuth client ID used to upload APK files.
+- `GOOGLE_DRIVE_CLIENT_SECRET` — OAuth client secret used to refresh Google Drive access.
+- `GOOGLE_DRIVE_REFRESH_TOKEN` — OAuth refresh token authorized for the target Google Drive account.
 
 Repository secrets work in private repositories on GitHub Free. GitHub Free does not provide environment secrets for private repositories, so this project deliberately uses repository secrets rather than a GitHub Environment.
+
+Create this repository variable at **Settings → Secrets and variables → Actions → Variables**:
+
+- `GOOGLE_DRIVE_APK_FOLDER_ID` — ID of the Google Drive folder where development APK files are stored.
+
+Do not store the refresh token in the repository or `development.json`. When the OAuth application is in Google testing mode, refresh tokens expire after seven days and `GOOGLE_DRIVE_REFRESH_TOKEN` must be replaced after a new authorization.
 
 ## Azure OpenID Connect setup
 
@@ -50,5 +59,6 @@ If Azure denies a required operation, expand the role only for that operation an
 3. It writes a temporary `.env.development-phone` from `development.json`; this file is ignored and never committed.
 4. Vite builds the web application, Capacitor synchronizes the Android project, and the Gradle Wrapper builds a debug APK.
 5. GitHub publishes the APK as `NotionManagementApp-dev-debug-apk` for seven days.
+6. It refreshes a short-lived Google access token and uploads a uniquely named APK to the configured Google Drive folder.
 
 The APK is debug-signed. It is suitable for manual installation and development testing, not for Play Store distribution.

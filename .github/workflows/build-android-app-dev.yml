@@ -59,3 +59,56 @@ jobs:
           path: NotionManagementApp/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 7
+
+      - name: Upload debug APK to Google Drive
+        env:
+          GOOGLE_DRIVE_CLIENT_ID: ${{ secrets.GOOGLE_DRIVE_CLIENT_ID }}
+          GOOGLE_DRIVE_CLIENT_SECRET: ${{ secrets.GOOGLE_DRIVE_CLIENT_SECRET }}
+          GOOGLE_DRIVE_REFRESH_TOKEN: ${{ secrets.GOOGLE_DRIVE_REFRESH_TOKEN }}
+          GOOGLE_DRIVE_APK_FOLDER_ID: ${{ vars.GOOGLE_DRIVE_APK_FOLDER_ID }}
+        run: |
+          test -n "$GOOGLE_DRIVE_CLIENT_ID"
+          test -n "$GOOGLE_DRIVE_CLIENT_SECRET"
+          test -n "$GOOGLE_DRIVE_REFRESH_TOKEN"
+          test -n "$GOOGLE_DRIVE_APK_FOLDER_ID"
+
+          apk_path=NotionManagementApp/android/app/build/outputs/apk/debug/app-debug.apk
+          apk_name="NotionManagementApp-dev-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}.apk"
+          apk_size=$(stat --printf='%s' "$apk_path")
+
+          access_token=$(curl --fail --silent --show-error --retry 3 --retry-all-errors \
+            --request POST https://oauth2.googleapis.com/token \
+            --data-urlencode "client_id=$GOOGLE_DRIVE_CLIENT_ID" \
+            --data-urlencode "client_secret=$GOOGLE_DRIVE_CLIENT_SECRET" \
+            --data-urlencode "refresh_token=$GOOGLE_DRIVE_REFRESH_TOKEN" \
+            --data-urlencode 'grant_type=refresh_token' | jq --exit-status --raw-output '.access_token')
+
+          headers_file=$(mktemp)
+          trap 'rm -f "$headers_file"' EXIT
+          metadata=$(jq --null-input --compact-output \
+            --arg name "$apk_name" \
+            --arg parent "$GOOGLE_DRIVE_APK_FOLDER_ID" \
+            '{name: $name, parents: [$parent]}')
+
+          curl --fail --silent --show-error \
+            --request POST 'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name,webViewLink' \
+            --header "Authorization: Bearer $access_token" \
+            --header 'Content-Type: application/json; charset=UTF-8' \
+            --header 'X-Upload-Content-Type: application/vnd.android.package-archive' \
+            --header "X-Upload-Content-Length: $apk_size" \
+            --data "$metadata" \
+            --dump-header "$headers_file" \
+            --output /dev/null
+
+          upload_url=$(awk 'tolower($1) == "location:" { sub(/\r$/, "", $2); print $2 }' "$headers_file")
+          test -n "$upload_url"
+
+          upload_result=$(curl --fail --silent --show-error \
+            --request PUT "$upload_url" \
+            --header "Authorization: Bearer $access_token" \
+            --header 'Content-Type: application/vnd.android.package-archive' \
+            --header "Content-Length: $apk_size" \
+            --upload-file "$apk_path")
+
+          echo "Google Drive file ID: $(jq --exit-status --raw-output '.id' <<< "$upload_result")"
+          echo "Google Drive file URL: $(jq --exit-status --raw-output '.webViewLink' <<< "$upload_result")"
