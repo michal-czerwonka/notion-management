@@ -85,6 +85,18 @@ public sealed class NotionInboxItemFunctions(
             return await WriteJsonAsync(request, HttpStatusCode.OK, item, cancellationToken);
         }, cancellationToken);
 
+    [Function("DeleteNotionInboxItem")]
+    public Task<HttpResponseData> DeleteAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = ItemRoute)] HttpRequestData request,
+        string id,
+        CancellationToken cancellationToken) => ExecuteAsync(request, async () =>
+        {
+            await client.ArchiveItemAsync(id, cancellationToken);
+            var response = request.CreateResponse(HttpStatusCode.NoContent);
+            response.Headers.Add("Cache-Control", "no-store");
+            return response;
+        }, cancellationToken);
+
     [Function("MoveNotionInboxItemToTasks")]
     public Task<HttpResponseData> MoveToTasksAsync(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = MoveToTasksRoute)] HttpRequestData request,
