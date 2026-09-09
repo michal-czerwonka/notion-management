@@ -32,7 +32,7 @@ Create these at **Settings → Secrets and variables → Actions → Secrets**:
 
 Repository secrets work in private repositories on GitHub Free. GitHub Free does not provide environment secrets for private repositories, so this project deliberately uses repository secrets rather than a GitHub Environment.
 
-Create this repository variable at **Settings → Secrets and variables → Actions → Variables**:
+Create this repository secret at **Settings → Secrets and variables → Actions → Secrets**:
 
 - `GOOGLE_DRIVE_APK_FOLDER_ID` — ID of the Google Drive folder where development APK files are stored.
 
