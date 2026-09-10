@@ -2,6 +2,12 @@
 
 Osobny projekt npm obok rozwiązania .NET. `src/App.tsx` jest punktem wejścia dla kolejnych widoków, `src/pages/InboxPage.tsx` obsługuje Inbox, a `src/api/inbox.ts` komunikację wyłącznie z Function App. Nie ma routera, globalnego store ani biblioteki UI; wygląd inspirowany Material Design zapewnia CSS.
 
+## Zadania rutynowe
+
+Lokalna konfiguracja zadań znajduje się w `src/config/routine-tasks.json`. Każde zadanie ma obecnie `id`, `name` i `daysOfWeek`; lista dni używa angielskich identyfikatorów: `monday` do `sunday`. Nowe pola można później dodać do tego samego obiektu bez zmiany zapisanego stanu.
+
+Zaznaczenia i pominięcia są przechowywane wyłącznie lokalnie w aplikacji. Aktywny dzień trwa od 03:00 do 03:00 w strefie `Europe/Warsaw` — po tej granicy oba stany są automatycznie zastępowane nowym, pustym stanem. Ekran pozostawiony otwarty odświeża się przy tej granicy; po ponownym otwarciu stan jest także weryfikowany. Nie są jeszcze wysyłane żadne zdarzenia do Function App.
+
 ## 1. Backend
 
 W istniejącym `NotionManagementFunctionApp/local.settings.json` dodaj do `Values`:

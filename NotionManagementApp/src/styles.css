@@ -14,6 +14,9 @@ button { cursor: pointer; min-height: 48px; border: 0; border-radius: 24px; font
 button:disabled { cursor: default; opacity: .48; }
 button:focus-visible, input:focus-visible { outline: 3px solid #7656bd; outline-offset: 3px; }
 .app-shell { max-width: 760px; margin: 0 auto; padding: max(36px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(36px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); }
+.main-navigation { display: flex; gap: 6px; width: fit-content; padding: 4px; border-radius: 18px; background: #e9e3f0; }
+.main-navigation button { min-height: 40px; padding: 0 18px; border-radius: 14px; background: transparent; color: #584274; }
+.main-navigation button.active { background: #fff; color: #3e2c5e; box-shadow: 0 1px 4px #30204018; }
 .page-header { display: flex; gap: 18px; align-items: center; margin: 16px 0 36px; }
 .app-mark { display: grid; place-items: center; width: 56px; height: 56px; flex-shrink: 0; background: #e9defa; color: #604393; border-radius: 18px; font-size: 32px; }
 h1 { margin: 0; font-size: 32px; font-weight: 600; letter-spacing: -.8px; }
@@ -29,6 +32,7 @@ input::placeholder { color: #77707f; }
 .notice { color: #346346; font-size: 14px; margin: 12px 0 0; }
 .notice:empty { display: none; }
 .inbox-list { margin-top: 32px; }
+.routine-list { margin-top: 32px; }
 .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 h2 { font-size: 18px; font-weight: 600; margin: 0; }
 .count { background: #e9e3f0; border-radius: 16px; padding: 3px 9px; font-size: 13px; margin-left: 6px; }
@@ -37,6 +41,18 @@ h2 { font-size: 18px; font-weight: 600; margin: 0; }
 ul { list-style: none; padding: 0; margin: 0; background: #fff; border: 1px solid #e8e2ee; border-radius: 20px; overflow: hidden; }
 li { padding: 20px; display: flex; gap: 14px; align-items: flex-start; line-height: 1.55; overflow-wrap: anywhere; white-space: pre-wrap; }
 li + li { border-top: 1px solid #eee9f2; }
+.routine-item { align-items: center; justify-content: space-between; gap: 16px; }
+.routine-checkbox { display: flex; align-items: center; gap: 14px; min-width: 0; margin: 0; cursor: pointer; font-weight: 400; }
+.routine-checkbox input { appearance: none; width: 26px; min-width: 26px; height: 26px; min-height: 26px; margin: 0; padding: 0; border: 2px solid #766d7d; border-radius: 8px; background: #fffbff; cursor: pointer; }
+.routine-checkbox input:checked { border-color: #67508f; background: #67508f; }
+.routine-checkbox input:checked::after { content: '✓'; display: block; color: white; font-size: 19px; font-weight: 700; line-height: 21px; text-align: center; }
+.routine-checkbox input:disabled { cursor: default; opacity: .65; }
+.routine-checkbox span { overflow-wrap: anywhere; }
+.routine-checkbox input:checked + span { color: #68616f; text-decoration: line-through; }
+.skip-button { min-height: 40px; padding: 0 14px; flex-shrink: 0; background: #f4eff8; color: #584274; font-size: 14px; }
+.skip-button:not(:disabled):hover { background: #e9def2; }
+.routine-item.skipped { background: #faf9fb; }
+.routine-item.skipped .routine-checkbox span { color: #918a98; text-decoration: line-through; }
 .item-dot { width: 8px; height: 8px; border-radius: 50%; background: #b6a3d0; flex-shrink: 0; }
 .item-content { min-width: 0; flex: 1; display: flex; align-items: center; gap: 12px; }
 .item-name { flex: 1; min-width: 0; }
@@ -68,5 +84,7 @@ h3 { font-size: 18px; font-weight: 500; color: #403648; margin-bottom: 8px; }
   .item-content { align-items: flex-start; flex-direction: column; gap: 10px; }
   .edit-button { align-self: flex-start; }
   .item-actions { align-self: flex-start; flex-wrap: wrap; }
+  .routine-item { align-items: flex-start; flex-direction: column; }
+  .skip-button { align-self: flex-start; }
   .page-header { gap: 12px; }
 }

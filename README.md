@@ -103,6 +103,24 @@ Created tasks set these Notion properties:
 
 GitHub Actions deploys the Function App and builds/uploads the development Android APK after every push to `main`, including merged pull requests. Both workflows can also be run manually. Their configuration, secret setup, Azure OIDC setup and detailed build/deployment process are documented in [deployment/README.md](deployment/README.md).
 
+### Local `git deploy` alias
+
+To publish `development` to `main` locally, configure this global Git alias once:
+
+```powershell
+git config --global alias.deploy '!f() { set -e; branch=$(git branch --show-current); if [ "$branch" != "development" ]; then echo "Run deploy from the development branch." >&2; exit 1; fi; if [ -n "$(git status --porcelain)" ]; then echo "Working tree is not clean." >&2; exit 1; fi; git fetch origin; if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/development)" ]; then echo "Local development differs from origin/development. Synchronize the branch first." >&2; exit 1; fi; git switch main; if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then echo "Local main differs from origin/main. Synchronize the branch first." >&2; exit 1; fi; git merge --no-ff --no-edit development; git push origin main; git switch development; }; f'
+```
+
+Then run this command from any subdirectory of the repository:
+
+```powershell
+git deploy
+```
+
+The alias requires a clean working tree, starts only from the `development` branch, and requires both local `development` and `main` to match `origin`. It merges `development` into `main`, pushes `main` to `origin` (triggering deployments), and returns to `development` after a successful push. On a conflict or error, it remains on `main` so that the state requiring manual action is not hidden.
+
+The alias is stored locally in the user's global Git configuration (`~/.gitconfig`, typically `C:\Users\<user>\.gitconfig` on Windows). It therefore does not appear in `git status` and must be configured separately on each machine.
+
 ## Application Insights
 
 Azure resources are created manually. The deployment workflow expects these resources to already exist:
