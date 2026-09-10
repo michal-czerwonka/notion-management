@@ -33,6 +33,21 @@ input::placeholder { color: #77707f; }
 .notice:empty { display: none; }
 .inbox-list { margin-top: 32px; }
 .routine-list { margin-top: 32px; }
+.today-list { margin-top: 32px; }
+.today-item { align-items: center; justify-content: space-between; gap: 12px; }
+.today-details { min-width: 0; flex: 1; display: grid; gap: 3px; }
+.today-details small { color: #706878; }
+.today-actions { display: flex; align-items: center; gap: 8px; }
+.status-menu { position: relative; }
+.status-button { min-height: 40px; background: #e8f0fb; color: #315f92; font-size: 14px; padding: 0 14px; }
+.status-options { position: absolute; z-index: 2; right: 0; top: calc(100% + 6px); min-width: 200px; padding: 6px; border: 1px solid #e8e2ee; border-radius: 14px; background: white; box-shadow: 0 8px 24px #30204025; }
+.status-options button { display: block; width: 100%; min-height: 40px; padding: 0 12px; border-radius: 10px; text-align: left; background: transparent; color: inherit; }
+.status-options button:hover { background: #f4eff8; }
+.confirm-backdrop { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 20px; background: #241d2d66; }
+.confirm-dialog { width: min(100%, 390px); padding: 24px; border-radius: 24px; background: white; box-shadow: 0 16px 48px #180f2466; }
+.confirm-dialog h2 { margin-bottom: 10px; }
+.confirm-dialog p { margin: 0 0 20px; color: #68616f; }
+.confirm-dialog div { display: flex; gap: 8px; }
 .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 h2 { font-size: 18px; font-weight: 600; margin: 0; }
 .count { background: #e9e3f0; border-radius: 16px; padding: 3px 9px; font-size: 13px; margin-left: 6px; }
@@ -85,6 +100,8 @@ h3 { font-size: 18px; font-weight: 500; color: #403648; margin-bottom: 8px; }
   .edit-button { align-self: flex-start; }
   .item-actions { align-self: flex-start; flex-wrap: wrap; }
   .routine-item { align-items: flex-start; flex-direction: column; }
+  .today-item { align-items: flex-start; flex-direction: column; }
+  .today-actions { align-self: flex-start; }
   .skip-button { align-self: flex-start; }
   .page-header { gap: 12px; }
 }

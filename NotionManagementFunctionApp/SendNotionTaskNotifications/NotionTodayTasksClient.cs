@@ -9,6 +9,7 @@ public sealed class NotionTodayTasksClient
 {
     private const string TitlePropertyName = "Nazwa";
     private const string StatusPropertyName = "Status";
+    private const string ProjectPropertyName = "Projekt";
 
     private readonly HttpClient _httpClient;
     private readonly string _token;
@@ -47,6 +48,45 @@ public sealed class NotionTodayTasksClient
 
         _logger.LogInformation("Found Notion today view '{ViewName}' with id '{ViewId}'.", view.Name, view.Id);
         return await QueryViewTasksAsync(view.Id, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<TodayTaskStatus>> GetStatusOptionsAsync(CancellationToken cancellationToken)
+    {
+        EnsureTaskDataSourceConfigured();
+        using var request = CreateRequest(HttpMethod.Get, $"data_sources/{Uri.EscapeDataString(_dataSourceId)}");
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        EnsureSuccess(response, body, "retrieve task data source");
+        using var document = JsonDocument.Parse(body);
+        var options = document.RootElement.GetProperty("properties").GetProperty(StatusPropertyName)
+            .GetProperty("status").GetProperty("options");
+        return options.EnumerateArray().Select(option => new TodayTaskStatus(
+            GetString(option, "name") ?? throw new InvalidOperationException("Task status is missing a name."),
+            GetString(option, "color") ?? "default")).ToArray();
+    }
+
+    public async Task UpdateStatusAsync(string id, string status, CancellationToken cancellationToken)
+    {
+        var statuses = await GetStatusOptionsAsync(cancellationToken);
+        if (!statuses.Any(item => item.Name == status)) throw new ArgumentException("Unknown status.");
+        await EnsureTaskBelongsAsync(id, cancellationToken);
+        using var request = CreateRequest(HttpMethod.Patch, $"pages/{Uri.EscapeDataString(id)}", new
+        {
+            properties = new Dictionary<string, object> { [StatusPropertyName] = new { status = new { name = status } } }
+        });
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        EnsureSuccess(response, body, "update task status");
+    }
+
+    public async Task ArchiveAsync(string id, CancellationToken cancellationToken)
+    {
+        EnsureTaskDataSourceConfigured();
+        await EnsureTaskBelongsAsync(id, cancellationToken);
+        using var request = CreateRequest(HttpMethod.Patch, $"pages/{Uri.EscapeDataString(id)}", new { in_trash = true });
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        EnsureSuccess(response, body, "archive task");
     }
 
     private async Task<NotionViewReference?> FindViewByNameAsync(CancellationToken cancellationToken)
@@ -131,10 +171,11 @@ public sealed class NotionTodayTasksClient
     {
         var pageIds = await QueryViewPageIdsAsync(viewId, cancellationToken);
         var tasks = new List<NotionTodayTask>(pageIds.Count);
+        var projects = new Dictionary<string, string>();
 
         foreach (var pageId in pageIds)
         {
-            tasks.Add(await RetrieveTaskDetailsAsync(pageId, cancellationToken));
+            tasks.Add(await RetrieveTaskDetailsAsync(pageId, projects, cancellationToken));
         }
 
         _logger.LogInformation("Retrieved {TaskCount} task detail(s) from Notion today view id '{ViewId}'.", tasks.Count, viewId);
@@ -189,7 +230,7 @@ public sealed class NotionTodayTasksClient
         }
     }
 
-    private async Task<NotionTodayTask> RetrieveTaskDetailsAsync(string pageId, CancellationToken cancellationToken)
+    private async Task<NotionTodayTask> RetrieveTaskDetailsAsync(string pageId, Dictionary<string, string> projects, CancellationToken cancellationToken)
     {
         using var request = CreateRequest(HttpMethod.Get, $"pages/{Uri.EscapeDataString(pageId)}");
         using var response = await _httpClient.SendAsync(request, cancellationToken);
@@ -207,7 +248,58 @@ public sealed class NotionTodayTasksClient
 
         var status = ReadStatus(root, StatusPropertyName) ?? "(bez statusu)";
 
-        return new NotionTodayTask(pageId, name, status, GetString(root, "url"));
+        return new NotionTodayTask(pageId, name, status, await GetProjectsAsync(root, projects, cancellationToken), GetString(root, "url"));
+    }
+
+    private async Task<IReadOnlyList<string>> GetProjectsAsync(JsonElement task, Dictionary<string, string> projects, CancellationToken cancellationToken)
+    {
+        if (!task.GetProperty("properties").TryGetProperty(ProjectPropertyName, out var projectProperty) ||
+            !projectProperty.TryGetProperty("relation", out var relation)) return [];
+        var names = new List<string>();
+        foreach (var relationItem in relation.EnumerateArray())
+        {
+            var id = GetString(relationItem, "id");
+            if (string.IsNullOrWhiteSpace(id)) continue;
+            if (!projects.TryGetValue(id, out var name))
+            {
+                name = await GetPageTitleAsync(id, cancellationToken);
+                projects[id] = name;
+            }
+            names.Add(name);
+        }
+        return names;
+    }
+
+    private async Task<string> GetPageTitleAsync(string id, CancellationToken cancellationToken)
+    {
+        using var request = CreateRequest(HttpMethod.Get, $"pages/{Uri.EscapeDataString(id)}");
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        EnsureSuccess(response, body, "retrieve project");
+        using var document = JsonDocument.Parse(body);
+        foreach (var property in document.RootElement.GetProperty("properties").EnumerateObject())
+        {
+            if (GetString(property.Value, "type") == "title") return string.Concat(property.Value.GetProperty("title").EnumerateArray().Select(part => GetString(part, "plain_text")));
+        }
+        return "(unnamed project)";
+    }
+
+    private async Task EnsureTaskBelongsAsync(string id, CancellationToken cancellationToken)
+    {
+        EnsureTaskDataSourceConfigured();
+        using var request = CreateRequest(HttpMethod.Get, $"pages/{Uri.EscapeDataString(id)}");
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound) throw new KeyNotFoundException("Task was not found.");
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        EnsureSuccess(response, body, "retrieve task");
+        using var document = JsonDocument.Parse(body);
+        var parent = document.RootElement.GetProperty("parent");
+        if (GetString(parent, "type") != "data_source_id" || GetString(parent, "data_source_id") != _dataSourceId) throw new KeyNotFoundException("Task was not found.");
+    }
+
+    private void EnsureTaskDataSourceConfigured()
+    {
+        if (string.IsNullOrWhiteSpace(_token) || string.IsNullOrWhiteSpace(_dataSourceId)) throw new InvalidOperationException("Missing Notion task configuration.");
     }
 
     private HttpRequestMessage CreateViewQueryRequest(string viewId)

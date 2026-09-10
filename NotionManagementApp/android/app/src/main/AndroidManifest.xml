@@ -30,6 +30,10 @@
             </intent-filter>
         </activity-alias>
 
+        <activity-alias android:name=".TodayTasksLauncher" android:targetActivity=".MainActivity" android:icon="@drawable/ic_today_launcher" android:roundIcon="@drawable/ic_today_launcher" android:label="Today's tasks" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+
         <activity-alias
             android:name=".RoutineTasksLauncher"
             android:targetActivity=".MainActivity"
