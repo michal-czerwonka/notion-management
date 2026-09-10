@@ -11,7 +11,7 @@ public class LauncherRoutePlugin extends Plugin {
     @Override
     protected void handleOnNewIntent(Intent intent) {
         JSObject payload = new JSObject();
-        payload.put("view", isRoutineTasksLauncher(intent) ? "routines" : "inbox");
+        payload.put("view", isTodayTasksLauncher(intent) ? "today" : isRoutineTasksLauncher(intent) ? "routines" : "inbox");
         notifyListeners("shortcutOpen", payload, true);
     }
 
@@ -19,5 +19,9 @@ public class LauncherRoutePlugin extends Plugin {
         return intent != null
             && intent.getComponent() != null
             && intent.getComponent().getClassName().endsWith(".RoutineTasksLauncher");
+    }
+
+    private boolean isTodayTasksLauncher(Intent intent) {
+        return intent != null && intent.getComponent() != null && intent.getComponent().getClassName().endsWith(".TodayTasksLauncher");
     }
 }
