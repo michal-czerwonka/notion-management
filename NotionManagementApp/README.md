@@ -1,24 +1,28 @@
 # Notion Management — React + TypeScript + Capacitor
 
-Osobny projekt npm obok rozwiązania .NET. `src/App.tsx` jest punktem wejścia dla kolejnych widoków, `src/pages/InboxPage.tsx` obsługuje Inbox, a `src/api/inbox.ts` komunikację wyłącznie z Function App. Nie ma routera, globalnego store ani biblioteki UI; wygląd inspirowany Material Design zapewnia CSS.
+This is a separate npm project alongside the .NET solution. `src/App.tsx` is the entry point for the application views, `src/pages/InboxPage.tsx` implements the Inbox, and `src/api/inbox.ts` communicates exclusively with the Function App. There is no router, global store, or UI library; the Material Design-inspired appearance is provided by CSS.
 
-## Zadania rutynowe
+## Android launcher icons
 
-Lokalna konfiguracja zadań znajduje się w `src/config/routine-tasks.json`. Każde zadanie ma obecnie `id`, `name` i `daysOfWeek`; lista dni używa angielskich identyfikatorów: `monday` do `sunday`. Nowe pola można później dodać do tego samego obiektu bez zmiany zapisanego stanu.
+After installing the APK, the Android launcher shows two icons: `Inbox` and `Routine tasks`. Both are aliases for the same Android activity, running in `singleTask` mode, so opening one after the other reuses the existing application instance. A native Capacitor bridge passes the selected launcher shortcut to React, which displays the Inbox or routine tasks view accordingly.
 
-Zaznaczenia i pominięcia są przechowywane wyłącznie lokalnie w aplikacji. Aktywny dzień trwa od 03:00 do 03:00 w strefie `Europe/Warsaw` — po tej granicy oba stany są automatycznie zastępowane nowym, pustym stanem. Ekran pozostawiony otwarty odświeża się przy tej granicy; po ponownym otwarciu stan jest także weryfikowany. Nie są jeszcze wysyłane żadne zdarzenia do Function App.
+## Routine tasks
+
+The local task configuration is in `src/config/routine-tasks.json`. Each task currently has an `id`, `name`, and `daysOfWeek`; the day list uses English identifiers from `monday` to `sunday`. New fields can later be added to the same object without changing the persisted state.
+
+Completions and skips are stored only locally in the application. An active day lasts from 03:00 to 03:00 in the `Europe/Warsaw` time zone; after this boundary, both states are replaced with a new empty state. A screen left open refreshes at the boundary, and the state is also verified when the screen is opened again. No events are sent to the Function App yet.
 
 ## 1. Backend
 
-W istniejącym `NotionManagementFunctionApp/local.settings.json` dodaj do `Values`:
+Add the following setting to `Values` in the existing `NotionManagementFunctionApp/local.settings.json`:
 
 ```json
 "Notion:InboxDataSourceId": "TODO_INBOX_DATA_SOURCE_ID"
 ```
 
-Zastąp placeholder **data source ID** Inbox (nie ID widoku). Wykorzystywany jest istniejący `Notion:Token`. Udostępnij bazę tej integracji w Notion i nadaj jej uprawnienia odczytu, dodawania oraz edytowania stron. Property `Nazwa` musi mieć typ `title`.
+Replace the placeholder with the Inbox **data source ID** (not a view ID). The existing `Notion:Token` is used. Share the database with the Notion integration and grant it permission to read, create, and update pages. The `Nazwa` property must have the `title` type.
 
-Dodaj/rozszerz sekcję `Host` obok `Values`, zachowując istniejące ustawienia:
+Add or extend the `Host` section next to `Values`, preserving any existing settings:
 
 ```json
 "Host": {
@@ -26,60 +30,60 @@ Dodaj/rozszerz sekcję `Host` obok `Values`, zachowując istniejące ustawienia:
 }
 ```
 
-Plik `local.settings.json.example` zawiera wzór konfiguracji dla świeżego checkoutu (z wyłączonymi timerami). Nie nadpisuj nim istniejących ustawień. Przy `UseDevelopmentStorage=true` uruchom lokalny Azurite. Wymagane: .NET 10 SDK i Azure Functions Core Tools v4.
+`local.settings.json.example` contains a configuration template for a fresh checkout, with timers disabled. Do not overwrite existing settings with it. When `UseDevelopmentStorage=true`, run a local Azurite instance. Requirements: .NET 10 SDK and Azure Functions Core Tools v4.
 
-Z katalogu głównego repozytorium uruchom `scripts\local\Start-LocalFunctionApp.ps1`. Skrypt uruchamia Azurite w tle i Function App na `http://127.0.0.1:7071`. Po zakończeniu pracy zatrzyma również Azurite, jeśli uruchomił go sam.
+From the repository root, run `scripts\local\Start-LocalFunctionApp.ps1`. The script starts Azurite in the background and the Function App at `http://127.0.0.1:7071`. When it finishes, it also stops Azurite if it started it itself.
 
-Kontrakt endpointów:
+Endpoint contract:
 
 ```http
 GET /api/inbox/a9cea60dda62442e
 ```
 
-Odpowiedź `200`: `[{ "id": "notion-page-id", "name": "Moja myśl" }]`. Lista zawiera wszystkie strony wyników, od najnowszych według czasu utworzenia.
+`200` response: `[{ "id": "notion-page-id", "name": "My thought" }]`. The list contains every result page, ordered from newest to oldest by creation time.
 
 ```http
 POST /api/inbox/a9cea60dda62442e
 Content-Type: application/json
 
-{ "name": "Moja myśl" }
+{ "name": "My thought" }
 ```
 
-Odpowiedź `201`: `{ "id": "notion-page-id", "name": "Moja myśl" }`. Backend usuwa białe znaki z początku i końca oraz wymaga 1–2000 znaków. `400` oznacza błędne dane, `503` brak konfiguracji, `502` błąd komunikacji/odpowiedzi Notion, `504` timeout. Błędy mają postać `{ "error": "..." }` i nie ujawniają odpowiedzi Notion ani sekretów. POST nie jest automatycznie ponawiany; przy utracie potwierdzenia sprawdź listę przed ponownym zapisem.
+`201` response: `{ "id": "notion-page-id", "name": "My thought" }`. The backend trims leading and trailing whitespace and requires 1–2,000 characters. `400` means invalid data, `503` means missing configuration, `502` means a Notion communication/response error, and `504` means timeout. Errors have the form `{ "error": "..." }` and do not expose Notion responses or secrets. POST requests are not retried automatically; if confirmation is lost, check the list before submitting again.
 
 ```http
 PATCH /api/inbox/a9cea60dda62442e/{notion-page-id}
 Content-Type: application/json
 
-{ "name": "Poprawiona myśl" }
+{ "name": "Corrected thought" }
 ```
 
-Odpowiedź `200`: `{ "id": "notion-page-id", "name": "Poprawiona myśl" }`. Endpoint aktualizuje wyłącznie strony należące do Inbox; dla obcego lub usuniętego wpisu zwraca `404`.
+`200` response: `{ "id": "notion-page-id", "name": "Corrected thought" }`. The endpoint updates only pages belonging to Inbox; it returns `404` for a foreign or deleted item.
 
 ```http
 DELETE /api/inbox/a9cea60dda62442e/{notion-page-id}
 ```
 
-Odpowiedź `204`. Endpoint przenosi wyłącznie wpis należący do Inbox do kosza Notion; dla obcego lub już usuniętego wpisu zwraca `404`.
+`204` response. The endpoint moves only an Inbox item to the Notion trash; it returns `404` for a foreign or already deleted item.
 
 ```http
 POST /api/inbox/a9cea60dda62442e/{notion-page-id}/move-to-tasks
 ```
 
-Odpowiedź `200`: `{ "taskId": "notion-page-id" }`. Endpoint tworzy w bazie `Zadania` zadanie o tej samej nazwie, ze statusem `Do zrobienia` i datą `Zaplanowane na` równą bieżącemu dniu według `Scheduler:TimeZone`. Właściwość projektu nie jest przesyłana, więc pozostaje pusta. Dopiero po powodzeniu utworzenia zadania wpis Inbox jest archiwizowany. Jeżeli archiwizacja zawiedzie, wpis pozostaje w Inbox, a odpowiedź informuje, że zadanie mogło już powstać; ponowienie może więc stworzyć duplikat.
+`200` response: `{ "taskId": "notion-page-id" }`. The endpoint creates a task with the same name in the `Zadania` database, status `Do zrobienia`, and a `Zaplanowane na` date equal to the current day in `Scheduler:TimeZone`. The project property is not sent, so it remains empty. The Inbox item is archived only after the task is successfully created. If archiving fails, the item remains in Inbox and the response indicates that the task may already exist; retrying can therefore create a duplicate.
 
-W Azure ustaw `Notion__InboxDataSourceId` przez workflow `Deploy Function App (dev)`. Skonfigurowany origin Androida to `https://localhost`. Dla lokalnego frontendu korzystającego z Azure dodaj również `http://127.0.0.1:5173` w CORS Function App. CORS dotyczy całej Function App; istniejące originy pozostają zachowane.
+In Azure, set `Notion__InboxDataSourceId` through the `Deploy Function App (dev)` workflow. The configured Android origin is `https://localhost`. For a local frontend using Azure, also add `http://127.0.0.1:5173` to the Function App CORS configuration. CORS applies to the entire Function App; preserve the existing origins.
 
-**MVP:** endpointy są anonimowe. Losowy fragment ścieżki utrudnia zgadywanie, ale jest widoczny w APK i ruchu sieciowym. Każdy znający URL może czytać i dodawać wpisy. TODO docelowej autoryzacji znajduje się w `NotionInboxItemFunctions.cs` i `src/api/inbox.ts`. Nie umieszczaj klucza Function App ani tokena Notion w aplikacji.
+**MVP:** the endpoints are anonymous. The random path segment makes guessing harder, but it is visible in the APK and network traffic. Anyone who knows the URL can read and add items. The TODO for production authentication is in `NotionInboxItemFunctions.cs` and `src/api/inbox.ts`. Never put a Function App key or Notion token in the application.
 
-## 2. Lokalne profile API
+## 2. Local API profiles
 
-Adres API jest wybierany przed budową APK i zostaje w nim osadzony. Prywatne pliki profili są ignorowane przez Git:
+The API address is selected before building the APK and becomes embedded in it. Private profile files are ignored by Git:
 
-- `.env.local-emulator` — lokalna Function App dla emulatora Androida. Używa `http://10.0.2.2:7071`, ponieważ pod tym adresem emulator widzi Windows.
-- `.env.development-phone` — wdrożona, developerska Function App dostępna przez HTTPS dla fizycznego telefonu.
+- `.env.local-emulator` — local Function App for the Android emulator. It uses `http://10.0.2.2:7071`, the address through which the emulator reaches Windows.
+- `.env.development-phone` — deployed development Function App available over HTTPS to a physical phone.
 
-Przy pierwszym użyciu utwórz oba pliki na podstawie wzorów:
+For first use, create both files from their templates:
 
 ```powershell
 cd NotionManagementApp
@@ -87,36 +91,36 @@ Copy-Item .env.local-emulator.example .env.local-emulator
 Copy-Item .env.development-phone.example .env.development-phone
 ```
 
-W pliku `development-phone` ustaw rzeczywisty publiczny adres Function App. Wartości `VITE_*` są publiczne i wbudowywane do APK, dlatego nigdy nie umieszczaj w nich tokenów ani kluczy Function App.
+Set the actual public Function App address in `development-phone`. `VITE_*` values are public and embedded in the APK, so never place tokens or Function App keys in them.
 
-## 3. Build APK
+## 3. Build an APK
 
-Projekt `android/` jest w repozytorium, więc nie uruchamiaj `cap add android`. Skrypt sam instaluje zależności npm, jeśli ich nie ma, buduje frontend z właściwym profilem, wykonuje `cap sync android`, buduje debug APK przez Gradle Wrapper i otwiera folder wyniku w Eksploratorze Windows. Wymaga JDK 21 ustawionego w `JAVA_HOME`; wbudowane JBR Android Studio ma obecnie Javę 25 i nie współpracuje z używaną wersją Gradle.
+The `android/` project is committed to the repository, so do not run `cap add android`. The build script installs npm dependencies if needed, builds the frontend with the selected profile, runs `cap sync android`, builds a debug APK through the Gradle Wrapper, and opens the output folder in Windows Explorer. It requires JDK 21 in `JAVA_HOME`; Android Studio's bundled JBR currently uses Java 25, which is incompatible with the Gradle version in use.
 
-Żeby lokalne APK aktualizowało APK z GitHub Actions, oba buildy muszą używać tego samego klucza. Po utworzeniu developerskiego keystore skopiuj `android/signing.properties.example` jako `android/signing.properties` i uzupełnij hasła oraz alias tego keystore. Plik i klucz są ignorowane przez Git. Bez tego pliku lokalny build nadal korzysta z domyślnego klucza debug i nie zaktualizuje aplikacji podpisanej przez pipeline.
+For a local APK to update an APK built by GitHub Actions, both builds must use the same key. After creating a development keystore, copy `android/signing.properties.example` to `android/signing.properties` and enter that keystore's passwords and alias. The file and key are ignored by Git. Without this file, the local build still uses the default debug key and cannot update an APK signed by the pipeline.
 
-Build dla lokalnego emulatora — wcześniej uruchom `Start-LocalFunctionApp.ps1`:
+Build for a local emulator — start `Start-LocalFunctionApp.ps1` first:
 
 ```powershell
 .\scripts\local\Build-LocalEmulatorApk.ps1
 ```
 
-Build dla fizycznego telefonu, korzystający z developerskiego API HTTPS:
+Build for a physical phone using the development HTTPS API:
 
 ```powershell
 .\scripts\local\Build-DevelopmentPhoneApk.ps1
 ```
 
-Wyniki są kopiowane do `artifacts\android` przy root repozytorium:
+The results are copied to `artifacts\android` at the repository root:
 
 - `NotionManagementApp-localemulator-debug.apk`
 - `NotionManagementApp-developmentphone-debug.apk`
 
-Możesz przeciągnąć APK do uruchomionego emulatora w Android Studio albo zainstalować go ręcznie na telefonie. `adb` musi być w `PATH` (zwykle `%ANDROID_HOME%\platform-tools`).
+You can drag the APK onto a running Android Studio emulator or install it manually on a phone. `adb` must be in `PATH` (usually `%ANDROID_HOME%\platform-tools`).
 
-## 4. Frontend w przeglądarce
+## 4. Frontend in a browser
 
-Do pracy z Vite w przeglądarce ustaw tymczasowo adres lokalnego API dla bieżącej sesji PowerShell i uruchom serwer:
+To work with Vite in a browser, temporarily set the local API address for the current PowerShell session and start the server:
 
 ```powershell
 cd NotionManagementApp
@@ -124,4 +128,4 @@ $env:VITE_INBOX_API_URL = 'http://127.0.0.1:7071/api/inbox/a9cea60dda62442e'
 npm run dev
 ```
 
-Otwórz `http://127.0.0.1:5173`. Jeśli używasz wdrożonego API, ustaw jego pełny adres HTTPS zamiast lokalnego. Preview używa portu 4173, który trzeba dodatkowo dopuścić w CORS lokalnej Function App.
+Open `http://127.0.0.1:5173`. If you use the deployed API, set its full HTTPS address instead. The preview uses port 4173, which must also be allowed in the local Function App CORS settings.
