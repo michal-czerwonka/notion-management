@@ -1,0 +1,22 @@
+[
+  {
+    "id": "pack-children-for-school",
+    "name": "Spakować dzieci do szkoły",
+    "daysOfWeek": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+  },
+  {
+    "id": "pack-for-work",
+    "name": "Spakować się do pracy",
+    "daysOfWeek": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+  },
+  {
+    "id": "dishwasher-and-kitchen",
+    "name": "Nastawić zmywarkę i posprzątać w kuchni",
+    "daysOfWeek": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+  },
+  {
+    "id": "workout-30-minutes",
+    "name": "Trening przynajmniej 30 minut",
+    "daysOfWeek": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+  }
+]
