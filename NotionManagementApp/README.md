@@ -93,6 +93,8 @@ Copy-Item .env.development-phone.example .env.development-phone
 
 Set the actual public Function App address in `development-phone`. `VITE_*` values are public and embedded in the APK, so never place tokens or Function App keys in them.
 
+The GitHub Actions development APK build creates `.env.development-phone` temporarily from `deployment/config/development.json`. `android.developmentApiUrl` supplies `VITE_INBOX_API_URL`, while `android.developmentTodayTasksApiUrl` supplies `VITE_TODAY_TASKS_API_URL`; neither value needs to be a GitHub secret.
+
 ## 3. Build an APK
 
 The `android/` project is committed to the repository, so do not run `cap add android`. The build script installs npm dependencies if needed, builds the frontend with the selected profile, runs `cap sync android`, builds a debug APK through the Gradle Wrapper, and opens the output folder in Windows Explorer. It requires JDK 21 in `JAVA_HOME`; Android Studio's bundled JBR currently uses Java 25, which is incompatible with the Gradle version in use.

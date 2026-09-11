@@ -67,8 +67,9 @@ jobs:
           ANDROID_DEV_KEY_ALIAS: ${{ secrets.ANDROID_DEV_KEY_ALIAS }}
           ANDROID_DEV_KEY_PASSWORD: ${{ secrets.ANDROID_DEV_KEY_PASSWORD }}
         run: |
-          api_url=$(jq -r '.android.developmentApiUrl' ../deployment/config/development.json)
-          printf 'VITE_INBOX_API_URL=%s\n' "$api_url" > .env.development-phone
+          inbox_api_url=$(jq -r '.android.developmentApiUrl' ../deployment/config/development.json)
+          today_tasks_api_url=$(jq -r '.android.developmentTodayTasksApiUrl' ../deployment/config/development.json)
+          printf 'VITE_INBOX_API_URL=%s\nVITE_TODAY_TASKS_API_URL=%s\n' "$inbox_api_url" "$today_tasks_api_url" > .env.development-phone
           npm run build -- --mode development-phone
           npm exec cap sync android
           chmod +x android/gradlew
