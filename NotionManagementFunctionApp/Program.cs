@@ -3,6 +3,7 @@ using Microsoft.Azure.Functions.Worker.ApplicationInsights;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 using NotionManagementFunctionApp;
 using NotionManagementFunctionApp.CreateNotionTasks;
 using NotionManagementFunctionApp.NotionInboxItems;
@@ -12,6 +13,11 @@ var host = new HostBuilder()
     .ConfigureFunctionsWorkerDefaults()
     .ConfigureServices(services =>
     {
+        services.Configure<JsonSerializerOptions>(options =>
+        {
+            options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+        });
+
         services.AddApplicationInsightsTelemetryWorkerService();
         services.ConfigureFunctionsApplicationInsights();
         services.AddApplicationInsightsTelemetryProcessor<ApplicationInsightsTelemetryFilter>();
