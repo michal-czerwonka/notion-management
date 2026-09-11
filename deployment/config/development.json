@@ -22,6 +22,7 @@
     ]
   },
   "android": {
-    "developmentApiUrl": "https://notion-management-func-fpa5c6g8f5fdftfb.westeurope-01.azurewebsites.net/api/inbox/a9cea60dda62442e"
+    "developmentApiUrl": "https://notion-management-func-fpa5c6g8f5fdftfb.westeurope-01.azurewebsites.net/api/inbox/a9cea60dda62442e",
+    "developmentTodayTasksApiUrl": "https://notion-management-func-fpa5c6g8f5fdftfb.westeurope-01.azurewebsites.net/api/today-tasks/65aa9c24486c4e8a"
   }
 }
