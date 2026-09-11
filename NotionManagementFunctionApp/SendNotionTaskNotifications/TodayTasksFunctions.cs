@@ -8,6 +8,7 @@ namespace NotionManagementFunctionApp.SendNotionTaskNotifications;
 public sealed class TodayTasksFunctions(NotionTodayTasksClient client)
 {
     private const string Route = "today-tasks/65aa9c24486c4e8a";
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     [Function("GetTodayTasks")]
     public async Task<HttpResponseData> GetAsync([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = Route)] HttpRequestData request, CancellationToken cancellationToken)
@@ -21,7 +22,7 @@ public sealed class TodayTasksFunctions(NotionTodayTasksClient client)
     public async Task<HttpResponseData> PatchAsync([HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = Route + "/{id}")] HttpRequestData request, string id, CancellationToken cancellationToken)
     {
         UpdateTodayTaskStatusRequest? body;
-        try { body = await JsonSerializer.DeserializeAsync<UpdateTodayTaskStatusRequest>(request.Body, cancellationToken: cancellationToken); }
+        try { body = await JsonSerializer.DeserializeAsync<UpdateTodayTaskStatusRequest>(request.Body, JsonOptions, cancellationToken); }
         catch (JsonException) { return await JsonAsync(request, HttpStatusCode.BadRequest, new { error = "Invalid status request." }, cancellationToken); }
         if (string.IsNullOrWhiteSpace(body?.Status)) return await JsonAsync(request, HttpStatusCode.BadRequest, new { error = "A status is required." }, cancellationToken);
         try { await client.UpdateStatusAsync(id, body.Status.Trim(), cancellationToken); }
