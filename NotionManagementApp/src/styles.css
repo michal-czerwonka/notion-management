@@ -34,15 +34,23 @@ input::placeholder { color: #77707f; }
 .inbox-list { margin-top: 32px; }
 .routine-list { margin-top: 32px; }
 .today-list { margin-top: 32px; }
-.today-item { align-items: center; justify-content: space-between; gap: 12px; }
+.today-item { position: relative; align-items: center; justify-content: space-between; gap: 12px; }
 .today-details { min-width: 0; flex: 1; display: grid; gap: 3px; }
 .today-details small { color: #706878; }
 .today-actions { display: flex; align-items: center; gap: 8px; }
-.status-menu { position: relative; }
 .status-button { min-height: 40px; background: #e8f0fb; color: #315f92; font-size: 14px; padding: 0 14px; }
-.status-options { position: absolute; z-index: 2; right: 0; top: calc(100% + 6px); min-width: 200px; padding: 6px; border: 1px solid #e8e2ee; border-radius: 14px; background: white; box-shadow: 0 8px 24px #30204025; }
-.status-options button { display: block; width: 100%; min-height: 40px; padding: 0 12px; border-radius: 10px; text-align: left; background: transparent; color: inherit; }
-.status-options button:hover { background: #f4eff8; }
+.status-options { position: absolute; z-index: 2; top: calc(100% - 8px); left: 20px; right: 20px; display: grid; gap: 6px; padding: 10px; border: 1px solid #e8e2ee; border-radius: 16px; background: white; box-shadow: 0 8px 24px #30204025; }
+.status-options button { display: block; width: 100%; min-height: 42px; padding: 0 14px; border-radius: 10px; text-align: left; }
+.archive-icon { display: grid; place-items: center; width: 40px; min-width: 40px; height: 40px; min-height: 40px; padding: 0; border-radius: 50%; background: transparent; color: #8f2923; font-size: 28px; font-weight: 400; line-height: 1; }
+.archive-icon:not(:disabled):hover { background: #fde9e7; }
+.notion-default, .notion-gray { background: #e9e9e7; color: #4e4d4b; }
+.notion-yellow { background: #fbf3db; color: #846b13; }
+.notion-brown { background: #f1e5da; color: #754f32; }
+.notion-orange { background: #fbe4d4; color: #a14f10; }
+.notion-blue { background: #dcecfb; color: #216aa6; }
+.notion-purple { background: #ebe3f5; color: #69439a; }
+.notion-green { background: #dcefe2; color: #2c7645; }
+.status-options button:not(:disabled):hover { filter: brightness(.94); }
 .confirm-backdrop { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 20px; background: #241d2d66; }
 .confirm-dialog { width: min(100%, 390px); padding: 24px; border-radius: 24px; background: white; box-shadow: 0 16px 48px #180f2466; }
 .confirm-dialog h2 { margin-bottom: 10px; }
@@ -101,7 +109,8 @@ h3 { font-size: 18px; font-weight: 500; color: #403648; margin-bottom: 8px; }
   .item-actions { align-self: flex-start; flex-wrap: wrap; }
   .routine-item { align-items: flex-start; flex-direction: column; }
   .today-item { align-items: flex-start; flex-direction: column; }
-  .today-actions { align-self: flex-start; }
+  .today-actions { align-self: stretch; justify-content: space-between; width: 100%; }
+  .status-options { left: 16px; right: 16px; }
   .skip-button { align-self: flex-start; }
   .page-header { gap: 12px; }
 }

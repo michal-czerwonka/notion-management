@@ -23,9 +23,9 @@ export function App() {
   return (
     <main className="app-shell">
       <nav className="main-navigation" aria-label="Główna nawigacja">
-        <button className={view === 'inbox' ? 'active' : undefined} type="button" onClick={() => setView('inbox')}>Inbox</button>
-        <button className={view === 'routines' ? 'active' : undefined} type="button" onClick={() => setView('routines')}>Rutyny</button>
         <button className={view === 'today' ? 'active' : undefined} type="button" onClick={() => setView('today')}>Dzisiaj</button>
+        <button className={view === 'routines' ? 'active' : undefined} type="button" onClick={() => setView('routines')}>Rutyny</button>
+        <button className={view === 'inbox' ? 'active' : undefined} type="button" onClick={() => setView('inbox')}>Inbox</button>
       </nav>
       {view === 'inbox' ? <InboxPage /> : view === 'routines' ? <RoutineTasksPage /> : <TodayTasksPage />}
     </main>
