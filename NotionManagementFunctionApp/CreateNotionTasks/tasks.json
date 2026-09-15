@@ -24,17 +24,6 @@
       ]
     },
     {
-      "id": "gas-read",
-      "name": "[A] Spisać licznik gazu i wpisać do systemu",
-      "dates": [],
-      "rules": [
-        {
-          "type": "monthly",
-          "day": 1
-        }
-      ]
-    },
-    {
       "id": "water-read",
       "name": "[A] Spisać licznik wody i wpisać do systemu",
       "dates": [],
