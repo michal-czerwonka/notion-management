@@ -175,6 +175,10 @@ The Cosmos account, managed-identity role assignment, Notion webhook subscriptio
 
 Manual Cosmos emulator, Notion API, and webhook verification have not been run because their credentials and infrastructure are not available in this workspace.
 
+Temporary operational exception: the webhook verification request logs its verification token to Application Insights so it can be copied into the GitHub secret during initial subscription setup. This log statement must be removed and redeployed immediately after setup; verification tokens must not otherwise be logged.
+
+The deployment workflow permits an empty `NOTION_WEBHOOK_VERIFICATION_TOKEN` only for this bootstrap deployment. Before the webhook can process normal events, set the secret and redeploy.
+
 ## Review findings
 
 Not started.
