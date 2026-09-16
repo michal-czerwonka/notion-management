@@ -167,6 +167,8 @@ Both endpoints set `Cache-Control: no-store`, return no delivery-audit records, 
 
 Implemented the `TaskXp` Cosmos DB feature area, options validation, singleton Cosmos client, transactional state/event/total persistence with receipt idempotency and ETag retry, anonymous total/history endpoints, and the signed Notion webhook endpoint. Android status updates now record the confirmed Notion page snapshot immediately after a successful update. Added local/deployment configuration templates and deployment secret wiring.
 
+Task XP logs the safe operational context needed to diagnose Cosmos writes and reads: source, source-event ID, task ID, status, progression outcome, Cosmos status code, activity ID, and request charge. It does not log webhook signatures, verification tokens, Notion tokens, or connection strings.
+
 The Cosmos account, managed-identity role assignment, Notion webhook subscription, and production configuration values remain manual operational steps and were not performed from this repository.
 
 ## Validation performed
