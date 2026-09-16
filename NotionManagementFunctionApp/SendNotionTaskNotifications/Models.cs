@@ -5,6 +5,7 @@ public sealed record TodayTask(string Id, string Name, string Status, IReadOnlyL
 public sealed record TodayTaskStatus(string Name, string Color);
 public sealed record TodayTasksResponse(IReadOnlyList<TodayTask> Tasks, IReadOnlyList<TodayTaskStatus> Statuses);
 public sealed record UpdateTodayTaskStatusRequest(string? Status);
+public sealed record NotionTaskSnapshot(string PageId, string Name, string? Status, string? Effort, DateTimeOffset LastEditedAt);
 
 public sealed record NotionViewReference(string Id, string Name);
 

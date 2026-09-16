@@ -65,7 +65,19 @@ public sealed class NotionTodayTasksClient
             GetString(option, "color") ?? "default")).ToArray();
     }
 
-    public async Task UpdateStatusAsync(string id, string status, CancellationToken cancellationToken)
+    public async Task<string> GetStatusPropertyIdAsync(CancellationToken cancellationToken)
+    {
+        EnsureTaskDataSourceConfigured();
+        using var request = CreateRequest(HttpMethod.Get, $"data_sources/{Uri.EscapeDataString(_dataSourceId)}");
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        EnsureSuccess(response, body, "retrieve task data source");
+        using var document = JsonDocument.Parse(body);
+        return GetString(document.RootElement.GetProperty("properties").GetProperty(StatusPropertyName), "id")
+            ?? throw new InvalidOperationException("Task Status property is missing an id.");
+    }
+
+    public async Task<NotionTaskSnapshot> UpdateStatusAsync(string id, string status, CancellationToken cancellationToken)
     {
         var statuses = await GetStatusOptionsAsync(cancellationToken);
         if (!statuses.Any(item => item.Name == status)) throw new ArgumentException("Unknown status.");
@@ -77,6 +89,21 @@ public sealed class NotionTodayTasksClient
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
         EnsureSuccess(response, body, "update task status");
+        return ParseTaskSnapshot(body);
+    }
+
+    public async Task<NotionTaskSnapshot> GetTaskSnapshotAsync(string id, CancellationToken cancellationToken)
+    {
+        EnsureTaskDataSourceConfigured();
+        using var request = CreateRequest(HttpMethod.Get, $"pages/{Uri.EscapeDataString(id)}");
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound) throw new KeyNotFoundException("Task was not found.");
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        EnsureSuccess(response, body, "retrieve task");
+        var snapshot = ParseTaskSnapshot(body);
+        if (!string.Equals(snapshot.PageId, id, StringComparison.Ordinal) || !IsTaskDataSource(body))
+            throw new KeyNotFoundException("Task was not found.");
+        return snapshot;
     }
 
     public async Task ArchiveAsync(string id, CancellationToken cancellationToken)
@@ -297,6 +324,26 @@ public sealed class NotionTodayTasksClient
         if (GetString(parent, "type") != "data_source_id" || GetString(parent, "data_source_id") != _dataSourceId) throw new KeyNotFoundException("Task was not found.");
     }
 
+    private bool IsTaskDataSource(string body)
+    {
+        using var document = JsonDocument.Parse(body);
+        var parent = document.RootElement.GetProperty("parent");
+        return GetString(parent, "type") == "data_source_id" && GetString(parent, "data_source_id") == _dataSourceId;
+    }
+
+    private static NotionTaskSnapshot ParseTaskSnapshot(string body)
+    {
+        using var document = JsonDocument.Parse(body);
+        var root = document.RootElement;
+        var pageId = GetString(root, "id") ?? throw new InvalidOperationException("Notion page is missing an id.");
+        var name = NotionApi.ReadTitle(root, TitlePropertyName);
+        if (string.IsNullOrWhiteSpace(name)) name = "(bez nazwy)";
+        var effort = ReadSelect(root, "Effort");
+        var lastEdited = GetString(root, "last_edited_time");
+        if (!DateTimeOffset.TryParse(lastEdited, out var lastEditedAt)) lastEditedAt = DateTimeOffset.UtcNow;
+        return new NotionTaskSnapshot(pageId, name, ReadStatus(root, StatusPropertyName), effort, lastEditedAt);
+    }
+
     private void EnsureTaskDataSourceConfigured()
     {
         if (string.IsNullOrWhiteSpace(_token) || string.IsNullOrWhiteSpace(_dataSourceId)) throw new InvalidOperationException("Missing Notion task configuration.");
@@ -348,6 +395,14 @@ public sealed class NotionTodayTasksClient
         }
 
         return GetString(status, "name");
+    }
+
+    private static string? ReadSelect(JsonElement page, string propertyName)
+    {
+        if (!page.TryGetProperty("properties", out var properties) ||
+            !properties.TryGetProperty(propertyName, out var selectProperty) ||
+            !selectProperty.TryGetProperty("select", out var select) || select.ValueKind == JsonValueKind.Null) return null;
+        return GetString(select, "name");
     }
 
     private HttpRequestMessage CreateRequest(HttpMethod method, string uri, object? body = null)

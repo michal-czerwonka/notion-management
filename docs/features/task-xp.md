@@ -2,7 +2,7 @@
 
 ## Status
 
-Technical design and implementation planning complete
+Implemented locally; infrastructure and end-to-end verification pending
 
 ## Goal
 
@@ -76,7 +76,6 @@ Award XP for completed tasks. The XP amount should be derived from a task effort
 - Achievement, medal, streak, and dashboard functionality.
 - Manual user-driven XP adjustments.
 - Exposing raw source-delivery audit records to users.
-- The technical implementation of audit storage, event delivery, or external integrations.
 
 ## Technical design
 
@@ -166,11 +165,15 @@ Both endpoints set `Cache-Control: no-store`, return no delivery-audit records, 
 
 ## Implementation notes
 
-Not started.
+Implemented the `TaskXp` Cosmos DB feature area, options validation, singleton Cosmos client, transactional state/event/total persistence with receipt idempotency and ETag retry, anonymous total/history endpoints, and the signed Notion webhook endpoint. Android status updates now record the confirmed Notion page snapshot immediately after a successful update. Added local/deployment configuration templates and deployment secret wiring.
+
+The Cosmos account, managed-identity role assignment, Notion webhook subscription, and production configuration values remain manual operational steps and were not performed from this repository.
 
 ## Validation performed
 
-Not started.
+`dotnet build NotionManagement.sln` completed successfully with no warnings or errors on 2026-09-16.
+
+Manual Cosmos emulator, Notion API, and webhook verification have not been run because their credentials and infrastructure are not available in this workspace.
 
 ## Review findings
 
