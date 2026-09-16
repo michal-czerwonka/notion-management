@@ -16,6 +16,15 @@
     "notionInboxDataSourceId": "3d38bc09-19d3-80f5-bbc3-000b420b9086",
     "notionTodayViewId": "34e8bc0919d380c595f1000c54fb8ad5",
     "notionTodayViewName": "Na dzisiaj",
+    "taskXpEndpoint": "https://notion-management-db.documents.azure.com:443/",
+    "taskXpDatabase": "task-xp",
+    "taskXpContainer": "progression",
+    "taskXpReadRouteSegment": "slln0SDuDUGu-x264qt07Q",
+    "taskXpTrivial": 5,
+    "taskXpEasy": 10,
+    "taskXpMedium": 25,
+    "taskXpHard": 50,
+    "taskXpEpic": 100,
     "ntfyBaseUrl": "https://ntfy.sh",
     "corsAllowedOrigins": [
       "https://localhost"

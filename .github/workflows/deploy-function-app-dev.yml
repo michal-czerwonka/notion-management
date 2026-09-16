@@ -37,15 +37,18 @@ jobs:
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          NOTION_WEBHOOK_VERIFICATION_TOKEN: ${{ secrets.NOTION_WEBHOOK_VERIFICATION_TOKEN }}
         run: |
           test -n "$NOTION_TOKEN"
           test -n "$NTFY_TOPIC"
+          test -n "$NOTION_WEBHOOK_VERIFICATION_TOKEN"
           jq -e '.azure.subscriptionId and .azure.resourceGroupName and .azure.functionAppName' deployment/config/development.json > /dev/null
 
       - name: Configure Function App settings
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          NOTION_WEBHOOK_VERIFICATION_TOKEN: ${{ secrets.NOTION_WEBHOOK_VERIFICATION_TOKEN }}
         run: |
           config=deployment/config/development.json
           resource_group=$(jq -r '.azure.resourceGroupName' "$config")
@@ -66,6 +69,16 @@ jobs:
               "Notion__InboxDataSourceId=$(jq -r '.functionApp.notionInboxDataSourceId' "$config")" \
               "Notion__TodayViewId=$(jq -r '.functionApp.notionTodayViewId' "$config")" \
               "Notion__TodayViewName=$(jq -r '.functionApp.notionTodayViewName' "$config")" \
+              "TaskXp__Endpoint=$(jq -r '.functionApp.taskXpEndpoint' "$config")" \
+              "TaskXp__Database=$(jq -r '.functionApp.taskXpDatabase' "$config")" \
+              "TaskXp__Container=$(jq -r '.functionApp.taskXpContainer' "$config")" \
+              "TaskXp__ReadRouteSegment=$(jq -r '.functionApp.taskXpReadRouteSegment' "$config")" \
+              "TaskXp__Trivial=$(jq -r '.functionApp.taskXpTrivial' "$config")" \
+              "TaskXp__Easy=$(jq -r '.functionApp.taskXpEasy' "$config")" \
+              "TaskXp__Medium=$(jq -r '.functionApp.taskXpMedium' "$config")" \
+              "TaskXp__Hard=$(jq -r '.functionApp.taskXpHard' "$config")" \
+              "TaskXp__Epic=$(jq -r '.functionApp.taskXpEpic' "$config")" \
+              "TaskXp__NotionWebhookVerificationToken=$NOTION_WEBHOOK_VERIFICATION_TOKEN" \
               "Notion__Token=$NOTION_TOKEN" \
               "Ntfy__BaseUrl=$(jq -r '.functionApp.ntfyBaseUrl' "$config")" \
               "Ntfy__Topic=$NTFY_TOPIC" \

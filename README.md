@@ -86,10 +86,25 @@ Required settings:
 - `Scheduler:Schedule` - NCRONTAB expression for the timer trigger.
 - `Scheduler:TimeZone` - timezone used by task creation code for selecting "today"; currently `UTC`. Timer schedules themselves use `WEBSITE_TIME_ZONE`.
 - `Tasks:FilePath` - task definition file path; defaults to `CreateNotionTasks/tasks.json`.
+- `TaskXp:ConnectionString` - local Cosmos DB emulator connection string. In Azure use `TaskXp:Endpoint` instead; the Function App managed identity needs the `Cosmos DB Built-in Data Contributor` role.
+- `TaskXp:Database` / `TaskXp:Container` - defaults: `task-xp` / `progression`; the container partition key is `/profileId`.
+- `TaskXp:ReadRouteSegment` - long random segment used by the anonymous Task XP read endpoints.
+- `TaskXp:NotionWebhookVerificationToken` - secret used to verify the Notion Task XP webhook HMAC.
 
 For Azure app settings, use the equivalent environment variable names, for example `Notion__Token` and `Notion__DataSourceId`.
 
 Do not log tokens, credentials, connection strings, or Authorization headers.
+
+## Task XP
+
+Task XP records task transitions into and out of `Zrobione`. `Effort` is a Notion `select` property: `Trivial`, `Easy`, `Medium`, `Hard`, or `Epic`; an empty value receives the `Medium` mapping. The initial mapping is 5/10/25/50/100. Each event snapshots the applied effort and amount, so later mapping or effort edits do not rewrite history.
+
+Create Cosmos DB for NoSQL manually with provisioned shared throughput (1,000 RU/s), enable Free Tier when creating the account, and create `task-xp` / `progression` with partition key `/profileId`. Assign the Function App system identity `Cosmos DB Built-in Data Contributor` at database scope. Configure a signed Notion `page.properties_updated` webhook at `POST /api/notion/task-xp-webhook`; store its verification token only in local settings or the `NOTION_WEBHOOK_VERIFICATION_TOKEN` GitHub secret.
+
+The anonymous read API is deliberately obscured, not authenticated:
+
+- `GET /api/task-xp/<TaskXp:ReadRouteSegment>/total` returns `{ "totalXp": 0 }`.
+- `GET /api/task-xp/<TaskXp:ReadRouteSegment>/events?limit=1..100&continuationToken=<opaque>` returns newest-first logical XP events and an opaque continuation token.
 
 Created tasks set these Notion properties:
 

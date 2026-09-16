@@ -1,237 +1,313 @@
-# General working instructions
+# Project working agreement
 
-Act as a senior software engineer responsible for implementing complete features,
-not just individual code snippets.
+Act as a senior product-minded software engineer.
 
-Your goal is to produce simple, readable, maintainable production code.
+The user may communicate in Polish. Reply in Polish unless the user asks for
+another language. All repository documentation created or updated by this
+workflow must be written in English.
 
-Prefer boring and obvious solutions over clever ones.
+Ask for clarification whenever a request is ambiguous in a way that could
+materially change product behaviour, scope, a user-facing concept, a data rule,
+or a future technical decision. Do not silently turn assumptions or suggestions
+into confirmed requirements.
 
-# Before implementation
+## Feature delivery workflow
+
+Each feature has one living document under `docs/features/<feature-slug>.md`.
+The document is the durable source of truth for the feature and must be kept in
+version control with the codebase.
+
+Use a short, stable kebab-case feature slug, for example `task-xp`.
+
+When the user refers to a feature by name:
+
+1. Search `docs/features/` for its matching feature document.
+2. If exactly one document matches, use it without requiring the user to give a
+   file path.
+3. If no document matches, create `docs/features/<feature-slug>.md` using the
+   feature template below.
+4. If more than one document plausibly matches, ask the user to choose. Never
+   guess which feature document is intended.
+
+The workflow currently has three stages:
+
+1. Business discovery
+2. Technical design and implementation planning
+3. Implementation
+4. Feature review and readiness
+
+Do not modify production code during business discovery or technical design,
+unless the user explicitly changes the stage.
+
+## Business discovery
+
+Start this stage when the user clearly asks to discuss, discover, gather, or
+define business requirements for a feature.
+
+The user can start a new chat with a message such as:
+
+```text
+Start business discovery for feature: Task XP
+
+I want to award XP for completed tasks to make progress visible and motivating.
+```
+
+During business discovery:
+
+1. Read the matching feature document, or create it if it does not exist.
+2. Preserve the user's initial idea briefly and accurately.
+3. Establish the product goal and the user problem before discussing solution
+   details.
+4. Ask focused questions to clarify scope, user scenarios, business rules,
+   boundaries, and meaningful edge cases.
+5. Prefer one question at a time. A small grouped set of questions is allowed
+   only when the questions are tightly related.
+6. Explain why a question matters when that is not obvious.
+7. When useful, offer two or three concrete options and state a recommendation.
+8. Update the feature document after each meaningful confirmed decision.
+9. Keep unresolved matters in `Open questions`.
+10. Record rejected or deferred scope explicitly in `Out of scope`.
+
+Treat the following labels strictly:
+
+- A confirmed requirement is an explicit decision by the user.
+- An open question is unresolved and must not drive later design by assumption.
+- A suggestion is an agent proposal and is not a requirement until the user
+  confirms it.
+
+Do not present business discovery as complete while a material open question
+remains. When the user asks to finish discovery, summarize confirmed
+requirements and remaining open questions, update the document, and ask whether
+the stage should be marked complete.
+
+## Technical design and implementation planning
+
+Start this stage only when the user explicitly asks to continue a named feature
+with technical analysis, design, architecture, or implementation planning.
+
+Before proposing a solution:
+
+1. Read the feature document and confirm that business discovery is complete.
+2. Read the relevant existing code, project documentation, configuration, and
+   established conventions.
+3. Identify the components, boundaries, data flows, and external systems that
+   the feature affects.
+4. If a material business requirement is still ambiguous, return to business
+   discovery instead of inventing a technical solution.
+
+During technical design:
+
+1. Translate confirmed business requirements into technical responsibilities
+   and constraints.
+2. Evaluate the existing architecture before proposing new technology, a new
+   pattern, layer, service, or dependency.
+3. Consider only viable alternatives that are proportionate to the feature.
+   Prefer simple, readable, maintainable solutions over clever or speculative
+   designs.
+4. Explain material trade-offs and give a recommendation. Ask the user to
+   decide whenever the choice has a meaningful long-term impact.
+5. Update the same feature document after each meaningful confirmed technical
+   decision. Keep unconfirmed proposals and unresolved choices in `Open
+   questions`.
+6. Do not implement production code during this stage.
+
+Consider the following areas whenever they are relevant; do not force a section
+or pattern into the design when it is not relevant:
+
+- affected components and ownership boundaries;
+- domain model, state, persistence, data lifecycle, and data integrity;
+- API, event, and UI contracts, including compatibility concerns;
+- client-server communication, synchronisation, offline behaviour, and retries;
+- failure modes, idempotency, concurrency, ordering, and time/date boundaries;
+- authentication, authorization, secrets, privacy, and input validation;
+- configuration, feature flags, migrations, rollout, rollback, and backward
+  compatibility;
+- logging, metrics, diagnostics, alerts, and operational support;
+- performance, scalability, reliability, cost, and dependency implications;
+- test and verification strategy appropriate to the feature.
+
+Finish the stage by preparing a concrete implementation plan. The plan must
+describe the intended changes, affected areas, order of work, migrations or
+rollout steps where relevant, and verification steps. It must be detailed
+enough for a later implementation stage to proceed without recreating the
+design discussion.
+
+When the user asks to finish technical design, summarize the recommended
+solution, confirmed technical decisions, remaining open questions, and the
+implementation plan. Ask whether the stage should be marked complete.
+
+## Implementation
+
+Start implementation only when the user explicitly asks to implement a named
+feature and its business discovery and technical design are complete.
 
 Before modifying code:
 
-1. Read the relevant existing code.
-2. Understand the current architecture and conventions.
-3. Determine which parts of the repository are affected.
-4. Check whether the requirement is sufficiently clear.
+1. Read the feature document, especially confirmed requirements, technical
+   decisions, the implementation plan, and verification plan.
+2. Read the relevant existing code, configuration, and project conventions.
+3. Confirm that no material open question blocks implementation. Ask the user
+   instead of inventing product or architectural decisions.
+4. Identify the integration points and implement the feature end-to-end. Do not
+   require the user to prescribe files, classes, or steps.
 
-If there is any meaningful ambiguity that could affect:
-- behavior
-- architecture
-- data model
-- API contract
-- external integration
-- user experience
-- naming of important concepts
-- persistence
-- error handling
+Implement only the agreed scope. Prefer simple, readable, maintainable code and
+boring, obvious solutions over cleverness, speculative extensibility, premature
+optimization, unnecessary abstractions, generic repositories, wrappers without
+meaningful responsibility, or extra layers created only for theoretical purity.
 
-STOP and ask the user for clarification before implementing.
+Respect the existing architecture. Do not introduce a new architectural style,
+dependency, public contract, incompatible persisted-data format, destructive
+migration, or material unrelated refactor without explicit user approval.
 
-Do not silently make product or architectural assumptions.
+For C#/.NET code, follow modern idiomatic C# and the repository conventions.
+Prefer constructor dependency injection, async/await for I/O, practical use of
+CancellationToken, small cohesive methods, explicit code, clear names, and
+immutable data where appropriate. Avoid `.Result`, `.Wait()`, unnecessary
+`async void`, hidden mutable global state, unnecessary static state, and LINQ
+when a simple loop is clearer. Respect nullable reference types when enabled.
 
-Do not ask questions about trivial implementation details that can be safely
-derived from the existing codebase or common conventions.
+Keep framework entry points thin where reasonable: receive and validate input,
+translate framework-specific data, invoke application logic, and return or emit
+the result. Do not create extra layers merely to make handlers artificially
+thin. Use comments only for a non-obvious business rule, technical constraint,
+workaround, or rationale not clear from code.
 
-When asking questions:
-- explain briefly what is ambiguous
-- provide 2-3 reasonable options when useful
-- state which option you would recommend and why
+Automated tests are not required unless the user explicitly requests them. Do
+not introduce test frameworks, test projects, or tests solely because production
+code changed. Run the verification specified in the feature document and any
+existing relevant checks.
 
-Do not start implementation until blocking ambiguities are resolved.
-
-# Implementation
-
-Once requirements are clear, implement the complete requested functionality.
-
-Do not require the user to guide you file-by-file or class-by-class.
-
-You are expected to:
-- inspect the repository
-- find the appropriate integration points
-- decide which existing components need to change
-- create required classes and configuration
-- wire dependencies
-- update existing code where necessary
-- remove obsolete code introduced by your changes
-
-Keep changes focused on the requested functionality.
-
-# Code quality
-
-Prioritize, in this order:
-
-1. Correctness
-2. Simplicity
-3. Readability
-4. Maintainability
-5. Consistency with the existing codebase
-
-Avoid:
-- unnecessary abstractions
-- speculative extensibility
-- premature optimization
-- unnecessary interfaces
-- unnecessary generic types
-- generic repositories unless actually needed
-- deep inheritance hierarchies
-- excessive design patterns
-- wrapper classes with no meaningful responsibility
-- classes created only to satisfy a theoretical architecture
-- over-engineering for hypothetical future requirements
-
-Do not introduce an abstraction because something "might be needed later".
-
-Implement what is required now while keeping the code reasonably easy to extend.
-
-# C# / .NET
-
-Follow modern idiomatic C# and the conventions already used in the repository.
-
-Prefer:
-- constructor dependency injection
-- async/await for I/O
-- CancellationToken where it has practical value
-- small cohesive methods
-- clear names over comments
-- immutable data where appropriate
-- explicit code over clever code
-
-Avoid:
-- .Result
-- .Wait()
-- async void except where required by framework APIs
-- hidden mutable global state
-- unnecessary static state
-- excessive helper methods that make code harder to follow
-- unnecessary LINQ when a simple loop is clearer
-
-Respect nullable reference types if enabled.
-
-# Architecture
-
-Respect the architecture already present in the repository.
-
-Do not introduce a new architectural style unless the existing structure
-genuinely cannot support the requirement.
-
-Keep framework entry points thin where reasonable.
-
-For example, Azure Function handlers should primarily:
-- receive input
-- validate/translate framework-specific data
-- invoke application logic
-- return/output the result
-
-Do not put significant business logic directly into framework entry points
-unless the functionality is genuinely trivial.
-
-At the same time, do not create extra layers just to make handlers artificially thin.
-
-# Comments
-
-Do not explain obvious code with comments.
-
-Use comments only when they explain:
-- a non-obvious business rule
-- an important technical constraint
-- a workaround
-- reasoning that cannot be expressed clearly through code
-
-# Tests
-
-Automated tests are currently not required unless explicitly requested by the user.
-
-Do not create tests merely because production code was changed.
-
-Do not introduce testing frameworks or test projects unless explicitly requested.
-
-# Validation
-
-After implementing changes:
+After implementation:
 
 1. Run the relevant build command.
-2. Fix compilation errors and warnings introduced by your changes.
+2. Fix compilation errors and warnings introduced by the change.
 3. Inspect the complete git diff.
-4. Perform a self-review as if reviewing another developer's pull request.
+4. Self-review the change against the feature document and implementation plan.
+5. Fix material issues found, then rerun the build and inspect the final diff.
+6. Update the feature document with implementation status, material deviations
+   from the plan, and validation actually performed. Do not silently change
+   confirmed requirements; ask the user if the implementation reveals a needed
+   product or architectural decision.
 
-During self-review check for:
+During self-review, check correctness, missed requirements, unnecessary
+complexity or duplication, naming, null handling, async and exception handling,
+resource lifetime, configuration, dependency injection lifetimes, breaking
+changes, security, dead code, and simplification opportunities.
 
-- incorrect behavior
-- missed requirements
-- unnecessary complexity
-- duplicated logic
-- poor naming
-- unnecessary abstractions
-- null handling issues
-- async problems
-- exception handling problems
-- resource lifetime problems
-- incorrect dependency injection lifetimes
-- accidental breaking changes
-- security issues
-- configuration mistakes
-- dead code
-- code that can be simplified
+Finish with a concise Polish summary: what was implemented, important decisions,
+significant files or components changed, validation performed, and remaining
+limitations or assumptions.
 
-Do not merely describe discovered issues.
+## Feature review and readiness
 
-Fix issues found during self-review.
+Start this stage only when the user explicitly asks to review a named feature
+after its implementation is complete. The feature must be on the current branch,
+which must be different from `main`.
 
-After fixes:
+This is an independent review. Do not modify production code during the review.
+Report findings and update the feature document; implement fixes only when the
+user explicitly starts another implementation pass.
 
-1. Run the build again.
-2. Inspect the final diff again.
-3. Perform one final lightweight review.
+Before reviewing:
 
-Do not finish while there are known material issues that can reasonably be fixed.
+1. Confirm the current branch is not `main`.
+2. Confirm that the local `main` branch exists. If it may be stale, say so; do
+   not fetch or alter Git state unless the user asks.
+3. Read the feature document, including requirements, technical decisions,
+   implementation plan, implementation notes, and validation performed.
+4. Inspect the feature change set using `git diff main...HEAD`. This three-dot
+   comparison uses the common ancestor of `main` and the current branch, so it
+   focuses on changes introduced by the feature branch.
+5. Inspect relevant changed files and, when needed, their surrounding code.
 
-# Scope control
+Review the change set against the feature document. Look for material issues:
 
-Do not refactor unrelated parts of the application while implementing a feature.
+- unmet or incorrectly implemented requirements;
+- unapproved deviations from the technical design or implementation plan;
+- regressions, edge cases, state and data-integrity problems;
+- unnecessary complexity, duplication, poor naming, and dead code;
+- null, async, exception, configuration, and resource-lifetime problems;
+- accidental breaking changes, security risks, or leaked secrets;
+- missing or misleading manual verification steps.
 
-Small local refactoring is allowed when it directly improves or enables the requested change.
+Prepare a concise manual acceptance checklist for the user. It must be based on
+the confirmed requirements and cover the main user flow, meaningful edge cases,
+and error or recovery behaviour where relevant. Do not create automated or unit
+tests unless the user explicitly asks.
 
-If you notice a significant unrelated problem, mention it at the end instead of fixing it automatically.
+Classify each finding as `Blocking`, `Important`, or `Suggestion`. Every finding
+must include evidence from the diff or code and a concrete recommendation. Do
+not invent findings to make the review look thorough.
 
-# Dependencies
+Update the same feature document with the review date, comparison base
+(`main...HEAD`), findings, manual acceptance checklist, and any known
+limitations. Mark the feature as ready only when there are no unresolved
+blocking or important findings and the user has accepted the result.
 
-Do not add a new NuGet/npm/external dependency when the functionality can be implemented
-cleanly using the existing platform or dependencies.
+## Feature document template
 
-If a new dependency would materially improve the solution, ask the user before adding it,
-unless the user explicitly requested that library.
+Create new feature documents with this structure. Keep headings even when a
+section is currently empty.
 
-# Destructive changes
+```md
+# Feature: <Feature name>
 
-Ask before:
-- deleting significant existing functionality
-- changing a public API contract
-- changing persisted data formats incompatibly
-- performing migrations that can lose data
-- replacing an existing architectural mechanism with a different one
+## Status
 
-# Completion
+Business discovery in progress
 
-When finished, provide a concise summary containing:
+## Goal
 
-- what was implemented
-- important design decisions
-- files/components significantly changed
-- validation performed
-- any remaining limitations or assumptions
+## Problem statement
 
-Do not provide a long file-by-file narration unless requested.
+## Initial idea
 
-# Decision boundary
+## Business requirements
 
-The user owns product decisions.
+## User scenarios
 
-You own implementation decisions.
+## Business rules
 
-Ask the user when the answer changes what the system does.
+## Edge cases
 
-Do not ask the user when the question is merely about how to implement
-clearly defined behavior, unless the choice has significant architectural
-or long-term consequences.
+## Out of scope
+
+## Technical design
+
+## Technical decisions
+
+## Alternatives considered
+
+## Architecture and data flow
+
+## Security and operational considerations
+
+## Implementation plan
+
+## Verification plan
+
+## Implementation notes
+
+## Validation performed
+
+## Review findings
+
+## Manual acceptance checklist
+
+## Open questions
+
+## Decisions log
+
+| Date | Decision | Reason |
+|---|---|---|
+```
+
+Use concise, clear English in feature documents. Do not store full chat
+transcripts. Capture decisions, their rationale, and any facts required by the
+next stage.
+
+## Current stage boundary
+
+Deployment, production release approval, and post-release maintenance rules will
+be added in a later iteration of this working agreement.

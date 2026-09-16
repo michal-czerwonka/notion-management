@@ -8,6 +8,9 @@ using NotionManagementFunctionApp;
 using NotionManagementFunctionApp.CreateNotionTasks;
 using NotionManagementFunctionApp.NotionInboxItems;
 using NotionManagementFunctionApp.SendNotionTaskNotifications;
+using NotionManagementFunctionApp.TaskXp;
+using Azure.Identity;
+using Microsoft.Azure.Cosmos;
 
 var host = new HostBuilder()
     .ConfigureFunctionsWorkerDefaults()
@@ -41,6 +44,20 @@ var host = new HostBuilder()
         services.AddSingleton<SendNotionTaskNotificationsRunner>();
         services.AddSingleton<NtfyClient>();
         services.AddHttpClient<NotionTodayTasksClient>();
+
+        services.AddOptions<TaskXpOptions>()
+            .BindConfiguration(TaskXpOptions.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddSingleton(sp =>
+        {
+            var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<TaskXpOptions>>().Value;
+            return string.IsNullOrWhiteSpace(options.ConnectionString)
+                ? new CosmosClient(options.Endpoint, new DefaultAzureCredential())
+                : new CosmosClient(options.ConnectionString);
+        });
+        services.AddSingleton<TaskXpRepository>();
+        services.AddSingleton<TaskXpService>();
     })
     .Build();
 
