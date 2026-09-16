@@ -169,6 +169,8 @@ Implemented the `TaskXp` Cosmos DB feature area, options validation, singleton C
 
 Task XP logs the safe operational context needed to diagnose Cosmos writes and reads: source, source-event ID, task ID, status, progression outcome, Cosmos status code, activity ID, and request charge. It does not log webhook signatures, verification tokens, Notion tokens, or connection strings.
 
+Corrected Cosmos document serialization to use the SDK's Newtonsoft.Json attributes with explicit camel-case field names. This ensures the required `id` field and the `/profileId` partition-key field are emitted correctly.
+
 The Cosmos account, managed-identity role assignment, Notion webhook subscription, and production configuration values remain manual operational steps and were not performed from this repository.
 
 ## Validation performed
