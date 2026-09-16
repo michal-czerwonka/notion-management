@@ -26,6 +26,7 @@ Create these at **Settings → Secrets and variables → Actions → Secrets**:
 - `AZURE_SUBSCRIPTION_ID` — Azure subscription ID.
 - `NOTION_TOKEN` — Notion integration token.
 - `NTFY_TOPIC` — private ntfy topic.
+- `NOTION_WEBHOOK_VERIFICATION_TOKEN` — verification secret for the signed Task XP Notion webhook.
 - `GOOGLE_DRIVE_CLIENT_ID` — OAuth client ID used to upload APK files.
 - `GOOGLE_DRIVE_CLIENT_SECRET` — OAuth client secret used to refresh Google Drive access.
 - `GOOGLE_DRIVE_REFRESH_TOKEN` — OAuth refresh token authorized for the target Google Drive account.

@@ -2,10 +2,11 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
+using NotionManagementFunctionApp.TaskXp;
 
 namespace NotionManagementFunctionApp.SendNotionTaskNotifications;
 
-public sealed class TodayTasksFunctions(NotionTodayTasksClient client)
+public sealed class TodayTasksFunctions(NotionTodayTasksClient client, TaskXpService taskXp)
 {
     private const string Route = "today-tasks/65aa9c24486c4e8a";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -25,9 +26,15 @@ public sealed class TodayTasksFunctions(NotionTodayTasksClient client)
         try { body = await JsonSerializer.DeserializeAsync<UpdateTodayTaskStatusRequest>(request.Body, JsonOptions, cancellationToken); }
         catch (JsonException) { return await JsonAsync(request, HttpStatusCode.BadRequest, new { error = "Invalid status request." }, cancellationToken); }
         if (string.IsNullOrWhiteSpace(body?.Status)) return await JsonAsync(request, HttpStatusCode.BadRequest, new { error = "A status is required." }, cancellationToken);
-        try { await client.UpdateStatusAsync(id, body.Status.Trim(), cancellationToken); }
+        try
+        {
+            var snapshot = await client.UpdateStatusAsync(id, body.Status.Trim(), cancellationToken);
+            await taskXp.RecordAsync(snapshot, "android", $"android:{id}:{snapshot.LastEditedAt:O}", snapshot.LastEditedAt, cancellationToken);
+        }
         catch (ArgumentException) { return await JsonAsync(request, HttpStatusCode.BadRequest, new { error = "Unknown task status." }, cancellationToken); }
         catch (KeyNotFoundException) { return await JsonAsync(request, HttpStatusCode.NotFound, new { error = "Task was not found." }, cancellationToken); }
+        catch (TaskXpConfigurationException) { return await JsonAsync(request, HttpStatusCode.ServiceUnavailable, new { error = "Task progress is temporarily unavailable." }, cancellationToken); }
+        catch (Microsoft.Azure.Cosmos.CosmosException) { return await JsonAsync(request, HttpStatusCode.BadGateway, new { error = "Task progress could not be recorded. Retry the request." }, cancellationToken); }
         return await JsonAsync(request, HttpStatusCode.OK, new { id, status = body.Status.Trim() }, cancellationToken);
     }
 
