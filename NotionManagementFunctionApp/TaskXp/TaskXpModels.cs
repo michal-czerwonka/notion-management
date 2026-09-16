@@ -1,10 +1,55 @@
-using System.Text.Json.Serialization;
+using Newtonsoft.Json;
 using NotionManagementFunctionApp.SendNotionTaskNotifications;
 namespace NotionManagementFunctionApp.TaskXp;
 public sealed record TaskXpInput(NotionTaskSnapshot Task, string Source, string SourceEventId, DateTimeOffset OccurredAt);
-public sealed class TaskStateDocument { [JsonPropertyName("id")] public string Id { get; init; } = ""; public string ProfileId { get; init; } = TaskXpRepository.ProfileId; public string Type { get; init; } = "task-state"; public string TaskId { get; init; } = ""; public bool IsCompleted { get; init; } public DateTimeOffset LatestOccurredAt { get; init; } public int CompletionCycle { get; init; } public int? ActiveAwardXp { get; init; } [JsonPropertyName("_etag")] public string? ETag { get; init; } }
-public sealed class XpTotalDocument { [JsonPropertyName("id")] public string Id { get; init; } = "xp-total"; public string ProfileId { get; init; } = TaskXpRepository.ProfileId; public string Type { get; init; } = "xp-total"; public int TotalXp { get; init; } [JsonPropertyName("_etag")] public string? ETag { get; init; } }
-public sealed class XpEventDocument { [JsonPropertyName("id")] public string Id { get; init; } = ""; public string ProfileId { get; init; } = TaskXpRepository.ProfileId; public string Type { get; init; } = "xp-event"; public string TaskId { get; init; } = ""; public string TaskName { get; init; } = ""; public string ChangeType { get; init; } = ""; public int XpAmount { get; init; } public string? ObservedEffort { get; init; } public string Effort { get; init; } = ""; public string Source { get; init; } = ""; public DateTimeOffset OccurredAt { get; init; } public DateTimeOffset RecordedAt { get; init; } }
-public sealed class DeliveryReceiptDocument { [JsonPropertyName("id")] public string Id { get; init; } = ""; public string ProfileId { get; init; } = TaskXpRepository.ProfileId; public string Type { get; init; } = "delivery-receipt"; public string Source { get; init; } = ""; public string SourceEventId { get; init; } = ""; public string TaskId { get; init; } = ""; public DateTimeOffset OccurredAt { get; init; } public DateTimeOffset ReceivedAt { get; init; } }
+public sealed class TaskStateDocument
+{
+    [JsonProperty("id")] public string Id { get; init; } = "";
+    [JsonProperty("profileId")] public string ProfileId { get; init; } = TaskXpRepository.ProfileId;
+    [JsonProperty("type")] public string Type { get; init; } = "task-state";
+    [JsonProperty("taskId")] public string TaskId { get; init; } = "";
+    [JsonProperty("isCompleted")] public bool IsCompleted { get; init; }
+    [JsonProperty("latestOccurredAt")] public DateTimeOffset LatestOccurredAt { get; init; }
+    [JsonProperty("completionCycle")] public int CompletionCycle { get; init; }
+    [JsonProperty("activeAwardXp")] public int? ActiveAwardXp { get; init; }
+    [JsonProperty("_etag")] public string? ETag { get; init; }
+}
+
+public sealed class XpTotalDocument
+{
+    [JsonProperty("id")] public string Id { get; init; } = "xp-total";
+    [JsonProperty("profileId")] public string ProfileId { get; init; } = TaskXpRepository.ProfileId;
+    [JsonProperty("type")] public string Type { get; init; } = "xp-total";
+    [JsonProperty("totalXp")] public int TotalXp { get; init; }
+    [JsonProperty("_etag")] public string? ETag { get; init; }
+}
+
+public sealed class XpEventDocument
+{
+    [JsonProperty("id")] public string Id { get; init; } = "";
+    [JsonProperty("profileId")] public string ProfileId { get; init; } = TaskXpRepository.ProfileId;
+    [JsonProperty("type")] public string Type { get; init; } = "xp-event";
+    [JsonProperty("taskId")] public string TaskId { get; init; } = "";
+    [JsonProperty("taskName")] public string TaskName { get; init; } = "";
+    [JsonProperty("changeType")] public string ChangeType { get; init; } = "";
+    [JsonProperty("xpAmount")] public int XpAmount { get; init; }
+    [JsonProperty("observedEffort")] public string? ObservedEffort { get; init; }
+    [JsonProperty("effort")] public string Effort { get; init; } = "";
+    [JsonProperty("source")] public string Source { get; init; } = "";
+    [JsonProperty("occurredAt")] public DateTimeOffset OccurredAt { get; init; }
+    [JsonProperty("recordedAt")] public DateTimeOffset RecordedAt { get; init; }
+}
+
+public sealed class DeliveryReceiptDocument
+{
+    [JsonProperty("id")] public string Id { get; init; } = "";
+    [JsonProperty("profileId")] public string ProfileId { get; init; } = TaskXpRepository.ProfileId;
+    [JsonProperty("type")] public string Type { get; init; } = "delivery-receipt";
+    [JsonProperty("source")] public string Source { get; init; } = "";
+    [JsonProperty("sourceEventId")] public string SourceEventId { get; init; } = "";
+    [JsonProperty("taskId")] public string TaskId { get; init; } = "";
+    [JsonProperty("occurredAt")] public DateTimeOffset OccurredAt { get; init; }
+    [JsonProperty("receivedAt")] public DateTimeOffset ReceivedAt { get; init; }
+}
 public sealed record XpHistoryItem(string TaskName, string ChangeType, int XpAmount, string Effort, DateTimeOffset OccurredAt, string Source);
 public sealed record XpHistoryPage(IReadOnlyList<XpHistoryItem> Events, string? ContinuationToken);
