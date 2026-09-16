@@ -6,12 +6,11 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Options;
 using Microsoft.Azure.Cosmos;
-using Microsoft.Extensions.Logging;
 using NotionManagementFunctionApp.SendNotionTaskNotifications;
 
 namespace NotionManagementFunctionApp.TaskXp;
 
-public sealed class TaskXpFunctions(TaskXpService taskXp, NotionTodayTasksClient notion, IOptions<TaskXpOptions> options, ILogger<TaskXpFunctions> logger)
+public sealed class TaskXpFunctions(TaskXpService taskXp, NotionTodayTasksClient notion, IOptions<TaskXpOptions> options)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -49,12 +48,7 @@ public sealed class TaskXpFunctions(TaskXpService taskXp, NotionTodayTasksClient
         using (document)
         {
         var root = document.RootElement;
-        if (root.TryGetProperty("verification_token", out var verificationToken))
-        {
-            // Temporary setup aid. Remove immediately after the token is copied to GitHub Secrets.
-            logger.LogWarning("TEMPORARY TASK XP WEBHOOK VERIFICATION TOKEN: {VerificationToken}", verificationToken.GetString());
-            return await JsonAsync(request, HttpStatusCode.OK, new { verificationToken = verificationToken.GetString() }, cancellationToken);
-        }
+        if (root.TryGetProperty("verification_token", out var verificationToken)) return await JsonAsync(request, HttpStatusCode.OK, new { verificationToken = verificationToken.GetString() }, cancellationToken);
         if (!IsValidSignature(raw, request.Headers.TryGetValues("X-Notion-Signature", out var signatures) ? signatures.FirstOrDefault() : null)) return request.CreateResponse(HttpStatusCode.Unauthorized);
         if (!string.Equals(GetString(root, "type"), "page.properties_updated", StringComparison.Ordinal)) return request.CreateResponse(HttpStatusCode.NoContent);
         var statusPropertyId = await notion.GetStatusPropertyIdAsync(cancellationToken);
