@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import routineTasks from '../config/routine-tasks.json';
 
 type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
-type RoutineTask = { id: string; name: string; daysOfWeek: DayOfWeek[] };
+type RoutineTask = { id: string; name: string };
+type RoutineSchedule = Record<DayOfWeek, RoutineTask[]>;
 type TaskStatus = 'completed' | 'skipped';
 type StoredRoutineState = { periodKey: string; statuses: Record<string, TaskStatus> };
 
@@ -59,10 +60,7 @@ function nextResetTime() {
 export function RoutineTasksPage() {
   const [period, setPeriod] = useState(() => getPeriod());
   const [state, setState] = useState(() => loadState(getPeriod().key));
-  const scheduledTasks = useMemo(
-    () => (routineTasks as RoutineTask[]).filter(task => task.daysOfWeek.includes(period.weekday)),
-    [period.weekday],
-  );
+  const scheduledTasks = (routineTasks as RoutineSchedule)[period.weekday];
 
   useEffect(() => {
     const reset = () => {

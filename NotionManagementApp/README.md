@@ -8,7 +8,9 @@ After installing the APK, the Android launcher shows two icons: `Inbox` and `Rou
 
 ## Routine tasks
 
-The local task configuration is in `src/config/routine-tasks.json`. Each task currently has an `id`, `name`, and `daysOfWeek`; the day list uses English identifiers from `monday` to `sunday`. New fields can later be added to the same object without changing the persisted state.
+The local task configuration is in `src/config/routine-tasks.json`. It is an object with all seven English weekday keys from `monday` through `sunday`; every key contains an ordered list of task objects. Each task currently has only an `id` and `name`. When a task belongs on more than one weekday, duplicate its complete object in every applicable list while keeping the same `id` and `name`.
+
+`npm run build` first runs `scripts/validate-routine-tasks.mjs`. It rejects a missing or unsupported weekday, malformed task object, duplicate task ID within one weekday, or one stable ID used with different names across weekdays. The validator has no external dependencies.
 
 Completions and skips are stored only locally in the application. An active day lasts from 03:00 to 03:00 in the `Europe/Warsaw` time zone; after this boundary, both states are replaced with a new empty state. A screen left open refreshes at the boundary, and the state is also verified when the screen is opened again. No events are sent to the Function App yet.
 

@@ -1,22 +1,128 @@
-[
-  {
-    "id": "pack-children-for-school",
-    "name": "Spakować dzieci do szkoły",
-    "daysOfWeek": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-  },
-  {
-    "id": "pack-for-work",
-    "name": "Spakować się do pracy",
-    "daysOfWeek": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-  },
-  {
-    "id": "dishwasher-and-kitchen",
-    "name": "Nastawić zmywarkę i posprzątać w kuchni",
-    "daysOfWeek": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-  },
-  {
-    "id": "workout-30-minutes",
-    "name": "Trening przynajmniej 30 minut",
-    "daysOfWeek": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-  }
-]
+{
+  "monday": [
+    {
+      "id": "pack-children-for-school",
+      "name": "Spakować dzieci do szkoły"
+    },
+    {
+      "id": "pack-for-work",
+      "name": "Spakować się do pracy"
+    },
+    {
+      "id": "dishwasher-and-kitchen",
+      "name": "Nastawić zmywarkę i posprzątać w kuchni"
+    },
+    {
+      "id": "workout-30-minutes",
+      "name": "Trening przynajmniej 30 minut"
+    }
+  ],
+  "tuesday": [
+    {
+      "id": "pack-children-for-school",
+      "name": "Spakować dzieci do szkoły"
+    },
+    {
+      "id": "pack-for-work",
+      "name": "Spakować się do pracy"
+    },
+    {
+      "id": "dishwasher-and-kitchen",
+      "name": "Nastawić zmywarkę i posprzątać w kuchni"
+    },
+    {
+      "id": "workout-30-minutes",
+      "name": "Trening przynajmniej 30 minut"
+    }
+  ],
+  "wednesday": [
+    {
+      "id": "pack-children-for-school",
+      "name": "Spakować dzieci do szkoły"
+    },
+    {
+      "id": "pack-for-work",
+      "name": "Spakować się do pracy"
+    },
+    {
+      "id": "dishwasher-and-kitchen",
+      "name": "Nastawić zmywarkę i posprzątać w kuchni"
+    },
+    {
+      "id": "workout-30-minutes",
+      "name": "Trening przynajmniej 30 minut"
+    }
+  ],
+  "thursday": [
+    {
+      "id": "pack-children-for-school",
+      "name": "Spakować dzieci do szkoły"
+    },
+    {
+      "id": "pack-for-work",
+      "name": "Spakować się do pracy"
+    },
+    {
+      "id": "dishwasher-and-kitchen",
+      "name": "Nastawić zmywarkę i posprzątać w kuchni"
+    },
+    {
+      "id": "workout-30-minutes",
+      "name": "Trening przynajmniej 30 minut"
+    }
+  ],
+  "friday": [
+    {
+      "id": "pack-children-for-school",
+      "name": "Spakować dzieci do szkoły"
+    },
+    {
+      "id": "pack-for-work",
+      "name": "Spakować się do pracy"
+    },
+    {
+      "id": "dishwasher-and-kitchen",
+      "name": "Nastawić zmywarkę i posprzątać w kuchni"
+    },
+    {
+      "id": "workout-30-minutes",
+      "name": "Trening przynajmniej 30 minut"
+    }
+  ],
+  "saturday": [
+    {
+      "id": "pack-children-for-school",
+      "name": "Spakować dzieci do szkoły"
+    },
+    {
+      "id": "pack-for-work",
+      "name": "Spakować się do pracy"
+    },
+    {
+      "id": "dishwasher-and-kitchen",
+      "name": "Nastawić zmywarkę i posprzątać w kuchni"
+    },
+    {
+      "id": "workout-30-minutes",
+      "name": "Trening przynajmniej 30 minut"
+    }
+  ],
+  "sunday": [
+    {
+      "id": "pack-children-for-school",
+      "name": "Spakować dzieci do szkoły"
+    },
+    {
+      "id": "pack-for-work",
+      "name": "Spakować się do pracy"
+    },
+    {
+      "id": "dishwasher-and-kitchen",
+      "name": "Nastawić zmywarkę i posprzątać w kuchni"
+    },
+    {
+      "id": "workout-30-minutes",
+      "name": "Trening przynajmniej 30 minut"
+    }
+  ]
+}
