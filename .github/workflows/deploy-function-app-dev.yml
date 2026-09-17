@@ -80,6 +80,8 @@ jobs:
               "TaskXp__Epic=$(jq -r '.functionApp.taskXpEpic' "$config")" \
               "TaskXp__ProgressReconciliationSchedule=$(jq -r '.functionApp.taskXpProgressReconciliationSchedule' "$config")" \
               "TaskXp__NotionWebhookVerificationToken=$NOTION_WEBHOOK_VERIFICATION_TOKEN" \
+              "RoutineTasks__RouteSegment=$(jq -r '.functionApp.routineTaskRouteSegment' "$config")" \
+              "RoutineTasks__ConfigurationPath=$(jq -r '.functionApp.routineTaskConfigurationPath' "$config")" \
               "Notion__Token=$NOTION_TOKEN" \
               "Ntfy__BaseUrl=$(jq -r '.functionApp.ntfyBaseUrl' "$config")" \
               "Ntfy__Topic=$NTFY_TOPIC" \

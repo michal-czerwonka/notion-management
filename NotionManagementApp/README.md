@@ -8,11 +8,13 @@ After installing the APK, the Android launcher shows two icons: `Inbox` and `Rou
 
 ## Routine tasks
 
-The local task configuration is in `src/config/routine-tasks.json`. It is an object with all seven English weekday keys from `monday` through `sunday`; every key contains an ordered list of task objects. Each task currently has only an `id` and `name`. When a task belongs on more than one weekday, duplicate its complete object in every applicable list while keeping the same `id` and `name`.
+Routine tasks are loaded from the Function App, which owns the authoritative business date, configured effort, and persisted daily state. Configure `VITE_ROUTINE_TASKS_API_URL` with the anonymous routine endpoint.
 
-`npm run build` first runs `scripts/validate-routine-tasks.mjs`. It rejects a missing or unsupported weekday, malformed task object, duplicate task ID within one weekday, or one stable ID used with different names across weekdays. The validator has no external dependencies.
+The shared source schedule is `../config/routine-tasks.json`. It contains all seven English weekday keys from `monday` through `sunday`; every key contains an ordered list of task objects with required `id`, `name`, and `effort` values. When a task belongs on more than one weekday, repeat its complete object in every applicable list. Its stable ID and name must remain consistent, while effort may differ by weekday.
 
-Completions and skips are stored only locally in the application. An active day lasts from 03:00 to 03:00 in the `Europe/Warsaw` time zone; after this boundary, both states are replaced with a new empty state. A screen left open refreshes at the boundary, and the state is also verified when the screen is opened again. No events are sent to the Function App yet.
+`npm run build` first runs `scripts/validate-routine-tasks.mjs`. It rejects missing or unsupported weekdays, malformed task objects, missing or unsupported effort values, duplicate task IDs within one weekday, and inconsistent names for one stable ID. The Function App validates the same shared file at startup.
+
+The Function App calculates the current business date using the 03:00 `Europe/Warsaw` boundary and returns the applicable schedule joined with confirmed Cosmos DB state. Completion, reopening, and skip operations are persisted before the UI changes. Failed writes retain the previously confirmed state and can be retried with the same operation ID; version conflicts refresh authoritative state. A screen left open reloads the server-owned schedule at the next boundary. Pre-feature `localStorage` state is ignored and is not uploaded or converted into XP history.
 
 ## 1. Backend
 
@@ -95,7 +97,7 @@ Copy-Item .env.development-phone.example .env.development-phone
 
 Set the actual public Function App address in `development-phone`. `VITE_*` values are public and embedded in the APK, so never place tokens or Function App keys in them.
 
-The GitHub Actions development APK build creates `.env.development-phone` temporarily from `deployment/config/development.json`. `android.developmentApiUrl` supplies `VITE_INBOX_API_URL`, `android.developmentTodayTasksApiUrl` supplies `VITE_TODAY_TASKS_API_URL`, and `android.developmentXpProgressApiUrl` supplies `VITE_XP_PROGRESS_API_URL`; none need to be GitHub secrets.
+The GitHub Actions development APK build creates `.env.development-phone` temporarily from `deployment/config/development.json`. `android.developmentApiUrl` supplies `VITE_INBOX_API_URL`, `android.developmentTodayTasksApiUrl` supplies `VITE_TODAY_TASKS_API_URL`, `android.developmentXpProgressApiUrl` supplies `VITE_XP_PROGRESS_API_URL`, and `android.developmentRoutineTasksApiUrl` supplies `VITE_ROUTINE_TASKS_API_URL`; none need to be GitHub secrets.
 
 ## 3. Build an APK
 

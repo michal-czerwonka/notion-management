@@ -70,7 +70,8 @@ jobs:
           inbox_api_url=$(jq -r '.android.developmentApiUrl' ../deployment/config/development.json)
           today_tasks_api_url=$(jq -r '.android.developmentTodayTasksApiUrl' ../deployment/config/development.json)
           xp_progress_api_url=$(jq -r '.android.developmentXpProgressApiUrl' ../deployment/config/development.json)
-          printf 'VITE_INBOX_API_URL=%s\nVITE_TODAY_TASKS_API_URL=%s\nVITE_XP_PROGRESS_API_URL=%s\n' "$inbox_api_url" "$today_tasks_api_url" "$xp_progress_api_url" > .env.development-phone
+          routine_tasks_api_url=$(jq -r '.android.developmentRoutineTasksApiUrl' ../deployment/config/development.json)
+          printf 'VITE_INBOX_API_URL=%s\nVITE_TODAY_TASKS_API_URL=%s\nVITE_XP_PROGRESS_API_URL=%s\nVITE_ROUTINE_TASKS_API_URL=%s\n' "$inbox_api_url" "$today_tasks_api_url" "$xp_progress_api_url" "$routine_tasks_api_url" > .env.development-phone
           npm run build -- --mode development-phone
           npm exec cap sync android
           chmod +x android/gradlew
