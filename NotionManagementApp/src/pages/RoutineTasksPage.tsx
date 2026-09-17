@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getRoutineTasks, RoutineApiError, updateRoutineTask, type RoutineMutationRequest, type RoutineState, type RoutineTask, type RoutineTaskList } from '../api/routineTasks';
 
 type FailedOperation = { request: RoutineMutationRequest; message: string };
@@ -19,18 +19,46 @@ function nextResetTime() {
   return targetAtUtc - offset;
 }
 
+function mergeLoadedList(current: RoutineTaskList | null, incoming: RoutineTaskList) {
+  if (!current || current.businessDate !== incoming.businessDate) return incoming;
+  const currentTasks = new Map(current.tasks.map(task => [task.id, task]));
+  return {
+    ...incoming,
+    tasks: incoming.tasks.map(task => {
+      const currentTask = currentTasks.get(task.id);
+      return currentTask && currentTask.version > task.version ? currentTask : task;
+    }),
+  };
+}
+
+function mergeOccurrence(current: RoutineTaskList | null, expectedBusinessDate: string, occurrence: RoutineTask) {
+  if (!current || current.businessDate !== expectedBusinessDate) return current;
+  const currentTask = current.tasks.find(task => task.id === occurrence.id);
+  if (!currentTask || occurrence.version < currentTask.version) return current;
+  return { ...current, tasks: current.tasks.map(task => task.id === occurrence.id ? occurrence : task) };
+}
+
 export function RoutineTasksPage() {
   const [list, setList] = useState<RoutineTaskList | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [failed, setFailed] = useState<Record<string, FailedOperation>>({});
+  const loadGeneration = useRef(0);
 
   const load = useCallback(async () => {
+    const generation = ++loadGeneration.current;
     setLoading(true); setError('');
-    try { setList(await getRoutineTasks()); setFailed({}); }
-    catch (exception) { setError(exception instanceof Error ? exception.message : 'Nie udało się pobrać zadań rutynowych.'); }
-    finally { setLoading(false); }
+    try {
+      const incoming = await getRoutineTasks();
+      if (generation !== loadGeneration.current) return;
+      setList(current => mergeLoadedList(current, incoming));
+      setFailed({});
+    } catch (exception) {
+      if (generation === loadGeneration.current) setError(exception instanceof Error ? exception.message : 'Nie udało się pobrać zadań rutynowych.');
+    } finally {
+      if (generation === loadGeneration.current) setLoading(false);
+    }
   }, []);
 
   useEffect(() => { void load(); }, [load]);
@@ -47,12 +75,12 @@ export function RoutineTasksPage() {
     setFailed(current => { const next = { ...current }; delete next[task.id]; return next; });
     try {
       const result = await updateRoutineTask(task.id, request);
-      setList(current => current ? { ...current, tasks: current.tasks.map(item => item.id === task.id ? result.occurrence : item) } : current);
+      setList(current => mergeOccurrence(current, request.expectedBusinessDate, result.occurrence));
     } catch (exception) {
       if (exception instanceof RoutineApiError && exception.status === 409) {
         const conflict = exception.conflict;
-        if (conflict?.occurrence && conflict.businessDate === list.businessDate) {
-          setList(current => current ? { ...current, tasks: current.tasks.map(item => item.id === task.id ? conflict.occurrence! : item) } : current);
+        if (conflict?.occurrence && conflict.businessDate === request.expectedBusinessDate) {
+          setList(current => mergeOccurrence(current, conflict.businessDate, conflict.occurrence!));
           setError('Stan zadania został odświeżony po zmianie z innego żądania.');
         } else await load();
       } else {

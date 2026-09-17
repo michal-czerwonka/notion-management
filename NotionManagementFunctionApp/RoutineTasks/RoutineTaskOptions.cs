@@ -8,4 +8,3 @@ public sealed class RoutineTaskOptions
     [Required, MinLength(12)] public string RouteSegment { get; init; } = "";
     [Required] public string ConfigurationPath { get; init; } = "config/routine-tasks.json";
 }
-

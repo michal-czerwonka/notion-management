@@ -2,7 +2,7 @@
 
 ## Status
 
-Feature review complete; not ready — important findings remain
+Implementation fixes complete; ready for re-review
 
 ## Goal
 
@@ -371,6 +371,12 @@ to be rejected rather than silently applied to the next occurrence.
 - Added the dedicated routine route and API URL to local examples, development deployment
   settings, GitHub Function App deployment, and Android APK generation.
 - No production-scope deviations from the confirmed implementation plan were required.
+- The post-review implementation pass prevents late mutation, conflict, and list responses
+  from replacing a different business day or a newer occurrence version. Concurrent list
+  loads are sequenced, and a stale list response preserves newer confirmed row versions.
+- Updated the client documentation to describe the shared effort configuration, Cosmos-backed
+  state, server-owned business date, retry behavior, and routine API deployment setting.
+- Removed the extra EOF blank lines reported by the review whitespace check.
 
 ## Validation performed
 
@@ -383,6 +389,9 @@ to be rejected rather than silently applied to the next occurrence.
 - `deployment/config/development.json` was parsed successfully with PowerShell
   `ConvertFrom-Json`.
 - `git diff --check` completed without whitespace errors.
+- After the review fixes, `dotnet build NotionManagement.sln` again succeeded with zero
+  warnings and zero errors, and `npm run build` again completed configuration validation,
+  TypeScript checking, and the Vite production build successfully.
 - Cosmos-backed runtime scenarios and on-device Android acceptance flows were not run in
   this workspace; they remain manual acceptance work for the feature review stage.
 
@@ -413,7 +422,9 @@ older than the currently rendered version. Otherwise discard the late row update
 the authoritative list. Cover the race between a mutation, manual refresh, scheduled boundary
 refresh, and a second-client update during the next implementation pass.
 
-Status: unresolved.
+Status: resolved in the post-review implementation pass. Mutation and conflict results are
+guarded by business date and occurrence version; concurrent list loads are sequenced and
+cannot lower an already rendered occurrence version.
 
 ### Important — Client documentation contradicts the implemented source of truth
 
@@ -428,7 +439,8 @@ Recommendation: replace the obsolete paragraphs with the current shared configur
 required `effort`, backend-persisted confirmed state, retry behavior, and 03:00 server-owned
 business-day refresh.
 
-Status: unresolved.
+Status: resolved in the post-review implementation pass. The obsolete local configuration
+and `localStorage` descriptions were replaced with the implemented server-backed flow.
 
 ### Suggestion — Current diff does not pass the recorded whitespace check
 
@@ -439,7 +451,8 @@ the whitespace check passed.
 
 Recommendation: remove the three extra EOF blank lines and rerun `git diff --check`.
 
-Status: unresolved.
+Status: resolved in the post-review implementation pass. The extra EOF blank lines were
+removed.
 
 ### Review validation
 

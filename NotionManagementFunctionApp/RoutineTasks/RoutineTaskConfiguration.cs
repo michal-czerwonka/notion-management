@@ -58,4 +58,3 @@ public sealed class RoutineTaskConfiguration
 
     private static TaskXpConfigurationException Invalid(string reason) => new($"Invalid routine task configuration: {reason}.");
 }
-

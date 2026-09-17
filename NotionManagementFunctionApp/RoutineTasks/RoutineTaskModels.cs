@@ -59,4 +59,3 @@ public sealed class RoutineTaskConflictException(string message, RoutineTaskConf
 {
     public RoutineTaskConflictResult Conflict { get; } = conflict;
 }
-
