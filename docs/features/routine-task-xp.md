@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation fixes complete; ready for re-review
+Feature review complete; no unresolved findings; awaiting user acceptance
 
 ## Goal
 
@@ -399,6 +399,8 @@ to be rejected rather than silently applied to the next occurrence.
 
 Review date: 2026-09-17
 
+Re-review date: 2026-09-17
+
 Comparison base: `main...HEAD`
 
 The local `main` branch was used as required. Its freshness relative to the remote was not
@@ -454,6 +456,12 @@ Recommendation: remove the three extra EOF blank lines and rerun `git diff --che
 Status: resolved in the post-review implementation pass. The extra EOF blank lines were
 removed.
 
+### Re-review outcome
+
+No new blocking, important, or suggestion findings were identified. The post-review changes
+resolve all previously recorded findings. The feature is not marked ready until the user
+accepts the review result and the remaining manual acceptance work is acknowledged.
+
 ### Review validation
 
 - `dotnet build NotionManagement.sln` succeeded with zero warnings and zero errors.
@@ -466,6 +474,20 @@ removed.
   prevented validating the standard output-directory cleanup path in this review.
 - `git diff --check main...HEAD` reported the three whitespace issues described above.
 - Cosmos-backed and on-device Android scenarios were not executed.
+
+### Re-review validation
+
+- `dotnet build NotionManagement.sln` succeeded with zero warnings and zero errors.
+- The routine configuration validator and `tsc --noEmit` succeeded.
+- Vite production bundling of the updated client succeeded when directed to
+  `artifacts/review-routine-task-xp-vite-rerun`.
+- `git diff --check main...HEAD` completed without output.
+- The standard `npm run build` again reached Vite after successful configuration and
+  TypeScript validation, but the local Windows environment still returned `EPERM` while Vite
+  tried to remove the existing `NotionManagementApp/dist/assets` directory. The alternative
+  output build confirms bundling, but the locked standard output directory remains a local
+  validation limitation.
+- Cosmos-backed runtime scenarios and on-device Android acceptance flows were not executed.
 
 ## Manual acceptance checklist
 
