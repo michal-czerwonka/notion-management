@@ -9,7 +9,7 @@ export function XpProgressPage() {
   const [progress, setProgress] = useState<XpProgress | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  async function load(nextPeriod = period, nextPeriodStart = periodStart) {
+  async function load(nextPeriod: XpPeriod = period, nextPeriodStart?: string) {
     setLoading(true); setError('');
     try {
       const result = await getXpProgress(nextPeriod, nextPeriodStart);

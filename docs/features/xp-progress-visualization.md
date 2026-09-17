@@ -144,11 +144,14 @@ The Android application adds an `xp-progress` API module and a `XpProgressPage`,
 - Added Europe/Warsaw 03:00 business-period calculation and effective-dated target validation.
 - Award and revoke writes now update deterministic day, week, month, and year aggregates in the existing Cosmos transactional batch.
 - Added the scheduled target reconciler, aggregate progress endpoint, Android progress screen, deployment settings, and documentation.
+- The progress endpoint returns 0 earned XP and calculates the complete selected-period target from the configured effective-dated schedule when an eligible aggregate document does not exist.
+- Fixed period switching so a previously selected day start is not sent as the start of a week, month, or year request.
 
 ## Validation performed
 
 - `dotnet build NotionManagement.sln` completed successfully with 0 warnings and 0 errors.
 - `npm run build` in `NotionManagementApp` completed successfully.
+- `npm run build` in `NotionManagementApp` completed successfully after the post-deployment period-switching fix.
 - Inspected the complete working-tree diff and ran `git diff --check` successfully.
 - During the 2026-09-17 feature review, `dotnet build NotionManagement.sln` completed successfully with 0 warnings and 0 errors.
 - During the 2026-09-17 feature review, `npm run build` in `NotionManagementApp` completed successfully. The first sandboxed attempt was blocked by an `EPERM` error while Vite cleaned the existing `dist/assets` directory; the same build succeeded outside the sandbox.
