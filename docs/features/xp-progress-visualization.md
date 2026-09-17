@@ -2,7 +2,7 @@
 
 ## Status
 
-Feature review complete; pending manual acceptance
+Complete; extended manual acceptance pending
 
 ## Goal
 
@@ -164,12 +164,12 @@ The Android application adds an `xp-progress` API module and a `XpProgressPage`,
 - Resolved: Historical refresh now retains the selected `periodStart`; a failed refresh keeps the last successfully displayed historical result visible with its error message.
 - Accepted: The V1 progress fill remains capped at 100%. When XP exceeds the target, the success colour, trophy, and exact XP counter are the approved visual indication; an extended bar is not required.
 - No blocking or important findings remain.
-- Readiness: pending manual acceptance.
+- Readiness: accepted by the user after confirming the deployed primary flow. Extended manual acceptance remains pending and does not block completion.
 
 ## Manual acceptance checklist
 
-- [ ] Open the rightmost `Postęp XP` tab and confirm the current business day loads by default.
-- [ ] Switch between day, week, month, and year and confirm each result shows the normalized period and its complete-period target.
+- [x] Open the rightmost `Postęp XP` tab and confirm the current business day loads by default.
+- [x] Switch between day, week, month, and year and confirm each result shows the normalized period and its complete-period target.
 - [ ] Navigate to an earlier period, press refresh, and confirm the same historical period remains selected with freshly retrieved data.
 - [ ] Confirm earlier-period navigation becomes disabled at the effective-date boundary and an overlapping week, month, or year includes targets only from 2026-09-17 onward.
 - [ ] Confirm an eligible period with no XP events displays 0 XP rather than an error.
@@ -222,3 +222,4 @@ None.
 | 2026-09-17 | Complete feature review with changes required. | Two important Android UI findings remain unresolved: historical refresh loses the selected period, and over-target progress is visually capped at 100%. |
 | 2026-09-17 | Accept capped V1 progress fill for results above target. | The success colour, trophy, and exact XP counter are sufficient; visual bar extension is not required. |
 | 2026-09-17 | Resolve historical-period refresh finding. | The selected normalized period start is retained for refreshes and after failed requests. |
+| 2026-09-17 | Mark feature complete with extended acceptance pending. | User confirmed the deployed primary flow; remaining manual checks will be completed later. |
