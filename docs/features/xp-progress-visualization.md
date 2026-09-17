@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation complete
+Feature review complete; pending manual acceptance
 
 ## Goal
 
@@ -150,12 +150,33 @@ The Android application adds an `xp-progress` API module and a `XpProgressPage`,
 - `dotnet build NotionManagement.sln` completed successfully with 0 warnings and 0 errors.
 - `npm run build` in `NotionManagementApp` completed successfully.
 - Inspected the complete working-tree diff and ran `git diff --check` successfully.
+- During the 2026-09-17 feature review, `dotnet build NotionManagement.sln` completed successfully with 0 warnings and 0 errors.
+- During the 2026-09-17 feature review, `npm run build` in `NotionManagementApp` completed successfully. The first sandboxed attempt was blocked by an `EPERM` error while Vite cleaned the existing `dist/assets` directory; the same build succeeded outside the sandbox.
+- The review compared the feature branch with the available local `main` using `git diff main...HEAD`. The local branch was not fetched, so its freshness relative to the remote was not verified.
 
 ## Review findings
 
+- Review date: 2026-09-17
+- Comparison base: `main...HEAD`
+- Resolved: Historical refresh now retains the selected `periodStart`; a failed refresh keeps the last successfully displayed historical result visible with its error message.
+- Accepted: The V1 progress fill remains capped at 100%. When XP exceeds the target, the success colour, trophy, and exact XP counter are the approved visual indication; an extended bar is not required.
+- No blocking or important findings remain.
+- Readiness: pending manual acceptance.
 
 ## Manual acceptance checklist
 
+- [ ] Open the rightmost `Postęp XP` tab and confirm the current business day loads by default.
+- [ ] Switch between day, week, month, and year and confirm each result shows the normalized period and its complete-period target.
+- [ ] Navigate to an earlier period, press refresh, and confirm the same historical period remains selected with freshly retrieved data.
+- [ ] Confirm earlier-period navigation becomes disabled at the effective-date boundary and an overlapping week, month, or year includes targets only from 2026-09-17 onward.
+- [ ] Confirm an eligible period with no XP events displays 0 XP rather than an error.
+- [ ] Confirm XP before 03:00 Europe/Warsaw is attributed to the preceding business day, including around both daylight-saving-time transitions.
+- [ ] Confirm values below, exactly at, and above the target render correctly; above-target progress uses the success colour, trophy, and exact XP counter.
+- [ ] Confirm a negative signed period total is displayed as 0 XP.
+- [ ] Confirm initial loading, manual-refresh loading, and retrieval failures use the existing treatments and do not show stale progress as current data.
+- [ ] Confirm progress responses and derived progress values are not stored in Android local storage.
+- [ ] Confirm an award and revocation update the all-time total and the matching day, week, month, and year aggregates once; duplicate and stale deliveries must not alter aggregates.
+- [ ] Confirm the first target reconciliation backfills zero-XP periods, repeated reconciliation is idempotent, and a mixed effective-dated schedule updates only open-period targets.
 
 ## Open questions
 
@@ -195,3 +216,6 @@ None.
 | 2026-09-17 | Store daily targets as an append-only effective-dated repository configuration sequence. | User accepted retained target history so reconciliation can sum the daily values that applied within an open period. |
 | 2026-09-17 | Use a single aggregate progress endpoint with normalized selected periods. | User accepted the `progress` contract, including period start/end, earned and target XP, and server-provided earlier-period navigation. |
 | 2026-09-17 | Complete technical design. | The user confirmed that the technical design is complete and implementation will continue in a separate chat. |
+| 2026-09-17 | Complete feature review with changes required. | Two important Android UI findings remain unresolved: historical refresh loses the selected period, and over-target progress is visually capped at 100%. |
+| 2026-09-17 | Accept capped V1 progress fill for results above target. | The success colour, trophy, and exact XP counter are sufficient; visual bar extension is not required. |
+| 2026-09-17 | Resolve historical-period refresh finding. | The selected normalized period start is retained for refreshes and after failed requests. |
