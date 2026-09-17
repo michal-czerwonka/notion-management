@@ -8,6 +8,8 @@ After installing the APK, the Android launcher shows two icons: `Inbox` and `Rou
 
 ## Routine tasks
 
+Routine tasks are loaded from the Function App, which owns the authoritative business date, configured effort and persisted daily state. Configure `VITE_ROUTINE_TASKS_API_URL` with the anonymous routine endpoint. The shared source schedule is `../config/routine-tasks.json`; the frontend build validates every weekday entry and required effort before compiling.
+
 The local task configuration is in `src/config/routine-tasks.json`. It is an object with all seven English weekday keys from `monday` through `sunday`; every key contains an ordered list of task objects. Each task currently has only an `id` and `name`. When a task belongs on more than one weekday, duplicate its complete object in every applicable list while keeping the same `id` and `name`.
 
 `npm run build` first runs `scripts/validate-routine-tasks.mjs`. It rejects a missing or unsupported weekday, malformed task object, duplicate task ID within one weekday, or one stable ID used with different names across weekdays. The validator has no external dependencies.

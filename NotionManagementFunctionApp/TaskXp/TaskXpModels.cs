@@ -44,6 +44,7 @@ public sealed class XpEventDocument
     [JsonProperty("type")] public string Type { get; init; } = "xp-event";
     [JsonProperty("taskId")] public string TaskId { get; init; } = "";
     [JsonProperty("taskName")] public string TaskName { get; init; } = "";
+    [JsonProperty("subjectType")] public string SubjectType { get; init; } = "task";
     [JsonProperty("changeType")] public string ChangeType { get; init; } = "";
     [JsonProperty("xpAmount")] public int XpAmount { get; init; }
     [JsonProperty("observedEffort")] public string? ObservedEffort { get; init; }
@@ -64,6 +65,6 @@ public sealed class DeliveryReceiptDocument
     [JsonProperty("occurredAt")] public DateTimeOffset OccurredAt { get; init; }
     [JsonProperty("receivedAt")] public DateTimeOffset ReceivedAt { get; init; }
 }
-public sealed record XpHistoryItem(string TaskName, string ChangeType, int XpAmount, string Effort, DateTimeOffset OccurredAt, string Source);
+public sealed record XpHistoryItem(string TaskName, string SubjectType, string ChangeType, int XpAmount, string Effort, DateTimeOffset OccurredAt, string Source);
 public sealed record XpHistoryPage(IReadOnlyList<XpHistoryItem> Events, string? ContinuationToken);
 public sealed record XpProgressResult(string Period, string PeriodStart, string PeriodEndExclusive, int EarnedXp, int TargetXp, string? PreviousPeriodStart);

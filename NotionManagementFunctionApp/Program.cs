@@ -9,6 +9,7 @@ using NotionManagementFunctionApp.CreateNotionTasks;
 using NotionManagementFunctionApp.NotionInboxItems;
 using NotionManagementFunctionApp.SendNotionTaskNotifications;
 using NotionManagementFunctionApp.TaskXp;
+using NotionManagementFunctionApp.RoutineTasks;
 using Azure.Identity;
 using Microsoft.Azure.Cosmos;
 
@@ -60,7 +61,15 @@ var host = new HostBuilder()
         services.AddSingleton<BusinessPeriodCalculator>();
         services.AddSingleton<DailyTargetSchedule>();
         services.AddSingleton<TaskXpService>();
+        services.AddOptions<RoutineTaskOptions>()
+            .BindConfiguration(RoutineTaskOptions.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddSingleton<RoutineTaskConfiguration>();
+        services.AddSingleton<RoutineTaskRepository>();
+        services.AddSingleton<RoutineTaskService>();
     })
     .Build();
 
+_ = host.Services.GetRequiredService<RoutineTaskConfiguration>();
 host.Run();

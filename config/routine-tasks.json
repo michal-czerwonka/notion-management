@@ -1,0 +1,44 @@
+{
+  "monday": [
+    { "id": "pack-children-for-school", "name": "Spakować dzieci do szkoły", "effort": "Easy" },
+    { "id": "pack-for-work", "name": "Spakować się do pracy", "effort": "Easy" },
+    { "id": "dishwasher-and-kitchen", "name": "Nastawić zmywarkę i posprzątać w kuchni", "effort": "Medium" },
+    { "id": "workout-30-minutes", "name": "Trening przynajmniej 30 minut", "effort": "Hard" }
+  ],
+  "tuesday": [
+    { "id": "pack-children-for-school", "name": "Spakować dzieci do szkoły", "effort": "Easy" },
+    { "id": "pack-for-work", "name": "Spakować się do pracy", "effort": "Easy" },
+    { "id": "dishwasher-and-kitchen", "name": "Nastawić zmywarkę i posprzątać w kuchni", "effort": "Medium" },
+    { "id": "workout-30-minutes", "name": "Trening przynajmniej 30 minut", "effort": "Hard" }
+  ],
+  "wednesday": [
+    { "id": "pack-children-for-school", "name": "Spakować dzieci do szkoły", "effort": "Easy" },
+    { "id": "pack-for-work", "name": "Spakować się do pracy", "effort": "Easy" },
+    { "id": "dishwasher-and-kitchen", "name": "Nastawić zmywarkę i posprzątać w kuchni", "effort": "Medium" },
+    { "id": "workout-30-minutes", "name": "Trening przynajmniej 30 minut", "effort": "Hard" }
+  ],
+  "thursday": [
+    { "id": "pack-children-for-school", "name": "Spakować dzieci do szkoły", "effort": "Easy" },
+    { "id": "pack-for-work", "name": "Spakować się do pracy", "effort": "Easy" },
+    { "id": "dishwasher-and-kitchen", "name": "Nastawić zmywarkę i posprzątać w kuchni", "effort": "Medium" },
+    { "id": "workout-30-minutes", "name": "Trening przynajmniej 30 minut", "effort": "Hard" }
+  ],
+  "friday": [
+    { "id": "pack-children-for-school", "name": "Spakować dzieci do szkoły", "effort": "Easy" },
+    { "id": "pack-for-work", "name": "Spakować się do pracy", "effort": "Easy" },
+    { "id": "dishwasher-and-kitchen", "name": "Nastawić zmywarkę i posprzątać w kuchni", "effort": "Medium" },
+    { "id": "workout-30-minutes", "name": "Trening przynajmniej 30 minut", "effort": "Hard" }
+  ],
+  "saturday": [
+    { "id": "pack-children-for-school", "name": "Spakować dzieci do szkoły", "effort": "Easy" },
+    { "id": "pack-for-work", "name": "Spakować się do pracy", "effort": "Easy" },
+    { "id": "dishwasher-and-kitchen", "name": "Nastawić zmywarkę i posprzątać w kuchni", "effort": "Medium" },
+    { "id": "workout-30-minutes", "name": "Trening przynajmniej 30 minut", "effort": "Hard" }
+  ],
+  "sunday": [
+    { "id": "pack-children-for-school", "name": "Spakować dzieci do szkoły", "effort": "Easy" },
+    { "id": "pack-for-work", "name": "Spakować się do pracy", "effort": "Easy" },
+    { "id": "dishwasher-and-kitchen", "name": "Nastawić zmywarkę i posprzątać w kuchni", "effort": "Medium" },
+    { "id": "workout-30-minutes", "name": "Trening przynajmniej 30 minut", "effort": "Hard" }
+  ]
+}

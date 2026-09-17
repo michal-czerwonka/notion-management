@@ -1,55 +1,17 @@
-import { useEffect, useState } from 'react';
-import routineTasks from '../config/routine-tasks.json';
+import { useCallback, useEffect, useState } from 'react';
+import { getRoutineTasks, RoutineApiError, updateRoutineTask, type RoutineMutationRequest, type RoutineState, type RoutineTask, type RoutineTaskList } from '../api/routineTasks';
 
-type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
-type RoutineTask = { id: string; name: string };
-type RoutineSchedule = Record<DayOfWeek, RoutineTask[]>;
-type TaskStatus = 'completed' | 'skipped';
-type StoredRoutineState = { periodKey: string; statuses: Record<string, TaskStatus> };
-
+type FailedOperation = { request: RoutineMutationRequest; message: string };
 const timeZone = 'Europe/Warsaw';
-const storageKey = 'routine-tasks-state';
-const weekdays: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 function getWarsawParts(date = new Date()) {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(date);
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23' }).formatToParts(date);
   const value = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find(part => part.type === type)?.value);
   return { year: value('year'), month: value('month'), day: value('day'), hour: value('hour') };
 }
 
-function getPeriod(date = new Date()) {
-  const { year, month, day, hour } = getWarsawParts(date);
-  const periodDate = new Date(Date.UTC(year, month - 1, day - (hour < 3 ? 1 : 0)));
-  const key = periodDate.toISOString().slice(0, 10);
-  const weekday = weekdays[periodDate.getUTCDay()];
-  return { key, weekday };
-}
-
-function loadState(periodKey: string): StoredRoutineState {
-  try {
-    const value = localStorage.getItem(storageKey);
-    if (value) {
-      const state = JSON.parse(value) as StoredRoutineState;
-      if (state.periodKey === periodKey && state.statuses && typeof state.statuses === 'object') return state;
-    }
-  } catch {
-    // A malformed local value must not prevent access to the routine list.
-  }
-
-  return { periodKey, statuses: {} };
-}
-
-function saveState(state: StoredRoutineState) {
-  localStorage.setItem(storageKey, JSON.stringify(state));
-}
-
 function nextResetTime() {
-  const now = new Date();
-  const { year, month, day, hour } = getWarsawParts(now);
+  const { year, month, day, hour } = getWarsawParts();
   const resetDate = new Date(Date.UTC(year, month - 1, day + (hour >= 3 ? 1 : 0)));
   const targetAtUtc = Date.UTC(resetDate.getUTCFullYear(), resetDate.getUTCMonth(), resetDate.getUTCDate(), 3);
   const displayedAtTarget = getWarsawParts(new Date(targetAtUtc));
@@ -58,62 +20,71 @@ function nextResetTime() {
 }
 
 export function RoutineTasksPage() {
-  const [period, setPeriod] = useState(() => getPeriod());
-  const [state, setState] = useState(() => loadState(getPeriod().key));
-  const scheduledTasks = (routineTasks as RoutineSchedule)[period.weekday];
+  const [list, setList] = useState<RoutineTaskList | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState<Record<string, boolean>>({});
+  const [failed, setFailed] = useState<Record<string, FailedOperation>>({});
 
+  const load = useCallback(async () => {
+    setLoading(true); setError('');
+    try { setList(await getRoutineTasks()); setFailed({}); }
+    catch (exception) { setError(exception instanceof Error ? exception.message : 'Nie udało się pobrać zadań rutynowych.'); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { void load(); }, [load]);
   useEffect(() => {
-    const reset = () => {
-      const newPeriod = getPeriod();
-      setPeriod(newPeriod);
-      setState(loadState(newPeriod.key));
-    };
-    const timeout = window.setTimeout(reset, Math.max(0, nextResetTime() - Date.now()) + 50);
+    const timeout = window.setTimeout(() => void load(), Math.max(0, nextResetTime() - Date.now()) + 100);
     return () => window.clearTimeout(timeout);
-  }, [period.key]);
+  }, [list?.businessDate, load]);
 
-  function setStatus(taskId: string, status: TaskStatus | undefined) {
-    const currentPeriod = getPeriod();
-    const current = currentPeriod.key === state.periodKey ? state : loadState(currentPeriod.key);
-    const statuses = { ...current.statuses };
-    if (status) statuses[taskId] = status;
-    else delete statuses[taskId];
-    const updated = { periodKey: currentPeriod.key, statuses };
-    saveState(updated);
-    setPeriod(currentPeriod);
-    setState(updated);
+  async function change(task: RoutineTask, target: RoutineState, retry?: RoutineMutationRequest) {
+    if (!list) return;
+    const request = retry ?? { operationId: crypto.randomUUID(), expectedBusinessDate: list.businessDate, expectedVersion: task.version, state: target };
+    setError('');
+    setBusy(current => ({ ...current, [task.id]: true }));
+    setFailed(current => { const next = { ...current }; delete next[task.id]; return next; });
+    try {
+      const result = await updateRoutineTask(task.id, request);
+      setList(current => current ? { ...current, tasks: current.tasks.map(item => item.id === task.id ? result.occurrence : item) } : current);
+    } catch (exception) {
+      if (exception instanceof RoutineApiError && exception.status === 409) {
+        const conflict = exception.conflict;
+        if (conflict?.occurrence && conflict.businessDate === list.businessDate) {
+          setList(current => current ? { ...current, tasks: current.tasks.map(item => item.id === task.id ? conflict.occurrence! : item) } : current);
+          setError('Stan zadania został odświeżony po zmianie z innego żądania.');
+        } else await load();
+      } else {
+        setFailed(current => ({ ...current, [task.id]: { request, message: exception instanceof Error ? exception.message : 'Nie udało się zapisać zmiany.' } }));
+      }
+    } finally { setBusy(current => ({ ...current, [task.id]: false })); }
   }
 
-  return (
-    <>
-      <header className="page-header">
-        <span className="app-mark" aria-hidden="true">↻</span>
-        <div><h1>Zadania rutynowe</h1><p>Twój dzień trwa od 03:00 do 03:00 czasu polskiego.</p></div>
-      </header>
-
-      <section className="routine-list" aria-labelledby="routine-heading">
-        <div className="section-heading"><h2 id="routine-heading">Zaplanowane na dziś <span className="count">{scheduledTasks.length}</span></h2></div>
-        {scheduledTasks.length === 0 ? (
-          <div className="empty-state"><span aria-hidden="true">✓</span><h3>Bez zadań rutynowych</h3><p>Na ten dzień nic nie zostało zaplanowane.</p></div>
-        ) : (
-          <ul>{scheduledTasks.map(task => {
-            const status = state.statuses[task.id];
-            const isSkipped = status === 'skipped';
-            return (
-              <li key={task.id} className={`routine-item${isSkipped ? ' skipped' : ''}`}>
-                <label className="routine-checkbox">
-                  <input type="checkbox" checked={status === 'completed'} disabled={isSkipped}
-                    onChange={event => setStatus(task.id, event.target.checked ? 'completed' : undefined)} />
-                  <span>{task.name}</span>
-                </label>
-                <button type="button" className="skip-button" onClick={() => setStatus(task.id, isSkipped ? undefined : 'skipped')}>
-                  {isSkipped ? 'Cofnij pominięcie' : 'Pomiń'}
-                </button>
-              </li>
-            );
-          })}</ul>
-        )}
-      </section>
-    </>
-  );
+  const tasks = list?.tasks ?? [];
+  return <>
+    <header className="page-header"><span className="app-mark" aria-hidden="true">↻</span><div><h1>Zadania rutynowe</h1><p>Twój dzień trwa od 03:00 do 03:00 czasu polskiego.</p></div></header>
+    <section className="routine-list" aria-labelledby="routine-heading" aria-busy={loading}>
+      <div className="section-heading"><h2 id="routine-heading">Zaplanowane na dziś <span className="count">{tasks.length}</span></h2><button className="text-button" type="button" onClick={() => void load()} disabled={loading}>Odśwież</button></div>
+      {loading && <p className="state">Ładowanie zadań rutynowych…</p>}
+      {error && <p className="error">{error}</p>}
+      {!loading && list && tasks.length === 0 && <div className="empty-state"><span aria-hidden="true">✓</span><h3>Bez zadań rutynowych</h3><p>Na ten dzień nic nie zostało zaplanowane.</p></div>}
+      {!loading && tasks.length > 0 && <ul>{tasks.map(task => {
+        const isSkipped = task.state === 'skipped';
+        const isBusy = busy[task.id] === true;
+        const failure = failed[task.id];
+        return <li key={task.id} className={`routine-item${isSkipped ? ' skipped' : ''}`}>
+          <div className="routine-main">
+            <label className="routine-checkbox"><input type="checkbox" checked={task.state === 'completed'} disabled={isSkipped || isBusy} onChange={event => void change(task, event.target.checked ? 'completed' : 'pending')} /><span>{task.name}</span></label>
+            <small>{task.effort} · {task.xp} XP</small>
+            {failure && <p className="item-error">{failure.message}</p>}
+          </div>
+          <div className="routine-actions">
+            {failure && <button type="button" className="retry-button" disabled={isBusy} onClick={() => void change(task, failure.request.state, failure.request)}>Ponów</button>}
+            <button type="button" className="skip-button" disabled={isBusy} onClick={() => void change(task, isSkipped ? 'pending' : 'skipped')}>{isBusy ? 'Zapisywanie…' : isSkipped ? 'Cofnij pominięcie' : 'Pomiń'}</button>
+          </div>
+        </li>;
+      })}</ul>}
+    </section>
+  </>;
 }

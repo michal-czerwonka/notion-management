@@ -80,7 +80,7 @@ If Azure denies a required operation, expand the role only for that operation an
 
 1. GitHub installs Node.js 24, JDK 21 and Android SDK API 36.
 2. It installs npm dependencies from the lockfile.
-3. It writes a temporary `.env.development-phone` from `development.json`; this file is ignored and never committed.
+3. It writes a temporary `.env.development-phone`, including the routine API URL, from `development.json`; this file is ignored and never committed.
 4. It restores the development signing keystore from GitHub Secrets.
 5. Vite builds the web application, Capacitor synchronizes the Android project, and the Gradle Wrapper builds a signed debug APK.
 6. GitHub publishes the APK as `NotionManagementApp-dev-debug-apk` for seven days.

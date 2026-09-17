@@ -111,7 +111,7 @@ public sealed class TaskXpRepository
             using var iterator = _container.GetItemQueryIterator<XpEventDocument>(query, continuationToken, new QueryRequestOptions { PartitionKey = new PartitionKey(ProfileId), MaxItemCount = limit });
             var page = await iterator.ReadNextAsync(cancellationToken);
             _logger.LogInformation("Read Task XP event history. EventCount={EventCount}, HasContinuationToken={HasContinuationToken}, RequestCharge={RequestCharge}", page.Count, page.ContinuationToken is not null, page.RequestCharge);
-            return new XpHistoryPage(page.Select(e => new XpHistoryItem(e.TaskName, e.ChangeType, e.XpAmount, e.Effort, e.OccurredAt, e.Source)).ToArray(), page.ContinuationToken);
+            return new XpHistoryPage(page.Select(e => new XpHistoryItem(e.TaskName, string.IsNullOrWhiteSpace(e.SubjectType) ? "task" : e.SubjectType, e.ChangeType, e.XpAmount, e.Effort, e.OccurredAt, e.Source)).ToArray(), page.ContinuationToken);
         }
         catch (CosmosException exception)
         {
@@ -186,5 +186,5 @@ public sealed class TaskXpRepository
         try { await _container.CreateItemAsync(new DeliveryReceiptDocument { Id = id, Source = input.Source, SourceEventId = input.SourceEventId, TaskId = input.Task.PageId, OccurredAt = input.OccurredAt, ReceivedAt = DateTimeOffset.UtcNow }, new PartitionKey(ProfileId), cancellationToken: cancellationToken); }
         catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Conflict) { }
     }
-    private static XpEventDocument Event(TaskXpInput input, string changeType, int amount, string effort, DateTimeOffset now) => new() { Id = "xp-event:" + Guid.NewGuid().ToString("N"), TaskId = input.Task.PageId, TaskName = input.Task.Name, ChangeType = changeType, XpAmount = amount, ObservedEffort = input.Task.Effort, Effort = effort, Source = input.Source, OccurredAt = input.OccurredAt, RecordedAt = now };
+    private static XpEventDocument Event(TaskXpInput input, string changeType, int amount, string effort, DateTimeOffset now) => new() { Id = "xp-event:" + Guid.NewGuid().ToString("N"), TaskId = input.Task.PageId, TaskName = input.Task.Name, SubjectType = "task", ChangeType = changeType, XpAmount = amount, ObservedEffort = input.Task.Effort, Effort = effort, Source = input.Source, OccurredAt = input.OccurredAt, RecordedAt = now };
 }

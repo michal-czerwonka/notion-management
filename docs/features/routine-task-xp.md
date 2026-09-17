@@ -2,7 +2,7 @@
 
 ## Status
 
-Technical design complete; ready for implementation
+Implementation complete; ready for feature review
 
 ## Goal
 
@@ -355,7 +355,36 @@ to be rejected rather than silently applied to the next occurrence.
 
 ## Implementation notes
 
+- Moved the schedule to repository-level `config/routine-tasks.json` and added the
+  confirmed effort values. The frontend build validator and backend startup loader both
+  validate the shared file; the Function App project links it into build and publish
+  output.
+- Added the `RoutineTasks` backend area with authoritative business-day schedule reads,
+  versioned occurrence state, immutable transition history, durable operation replay,
+  conflict responses, and atomic routine/XP Cosmos transactional batches.
+- Extended XP events and history with the additive `subjectType` field. Existing events
+  without the field continue to resolve as `task`; routine awards and revocations use
+  `routine`.
+- Replaced frontend schedule and `localStorage` state ownership with the typed routine API.
+  State changes render only after server confirmation; failed writes retain their
+  operation ID for retry, while conflicts refresh confirmed server state.
+- Added the dedicated routine route and API URL to local examples, development deployment
+  settings, GitHub Function App deployment, and Android APK generation.
+- No production-scope deviations from the confirmed implementation plan were required.
+
 ## Validation performed
+
+- `dotnet build NotionManagement.sln` succeeded with zero warnings and zero errors.
+- `npm run build` in `NotionManagementApp` succeeded, including shared routine
+  configuration validation, TypeScript checking, and the Vite production build.
+- `dotnet publish NotionManagementFunctionApp/NotionManagementFunctionApp.csproj
+  --configuration Release --output artifacts/function-app/routine-task-xp-verify`
+  succeeded, and the published artifact contained `config/routine-tasks.json`.
+- `deployment/config/development.json` was parsed successfully with PowerShell
+  `ConvertFrom-Json`.
+- `git diff --check` completed without whitespace errors.
+- Cosmos-backed runtime scenarios and on-device Android acceptance flows were not run in
+  this workspace; they remain manual acceptance work for the feature review stage.
 
 ## Review findings
 
@@ -401,3 +430,4 @@ None.
 | 2026-09-17 | Add `subjectType` (`task` or `routine`) to shared XP events and interpret the field as `task` when absent. | The XP subject remains identifiable without overloading the existing event-source channel or migrating historical Cosmos documents. |
 | 2026-09-17 | Use `pending`, `completed`, and `skipped` routine states and an idempotent, versioned PUT contract with business-date preconditioning. | Explicit target state, operation identity, and concurrency preconditions make retries safe, prevent stale overwrites, and stop an old-day screen from changing a new-day occurrence. |
 | 2026-09-17 | Mark technical design as complete and the feature as ready for implementation. | The architecture, API contract, persistence model, concurrency and idempotency rules, rollout changes, implementation sequence, and verification plan are confirmed with no remaining open questions. |
+| 2026-09-17 | Assign `Easy` to school/work packing, `Medium` to kitchen cleanup, and `Hard` to the workout on every configured weekday. | The user confirmed the initial effort values required to implement explicit routine XP configuration. |

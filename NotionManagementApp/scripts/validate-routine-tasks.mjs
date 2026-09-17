@@ -1,7 +1,8 @@
 import { readFile } from 'node:fs/promises';
 
 const weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-const configurationUrl = new URL('../src/config/routine-tasks.json', import.meta.url);
+const configurationUrl = new URL('../../config/routine-tasks.json', import.meta.url);
+const efforts = ['Trivial', 'Easy', 'Medium', 'Hard', 'Epic'];
 
 function fail(message) {
   throw new Error(`Invalid routine tasks configuration: ${message}`);
@@ -41,11 +42,13 @@ for (const weekday of weekdays) {
     if (!isRecord(task)) fail(`${location} must be an object.`);
 
     const properties = Object.keys(task);
-    if (properties.length !== 2 || !properties.includes('id') || !properties.includes('name')) {
-      fail(`${location} must contain only "id" and "name".`);
+    if (properties.length !== 3 || !properties.includes('id') || !properties.includes('name') || !properties.includes('effort')) {
+      fail(`${location} must contain only "id", "name", and "effort".`);
     }
     if (typeof task.id !== 'string' || task.id.trim() === '') fail(`${location} has an invalid id.`);
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(task.id)) fail(`${location} has an id that is not stable kebab-case.`);
     if (typeof task.name !== 'string' || task.name.trim() === '') fail(`${location} has an invalid name.`);
+    if (typeof task.effort !== 'string' || !efforts.includes(task.effort)) fail(`${location} has an unsupported effort.`);
     if (ids.has(task.id)) fail(`${location} repeats id "${task.id}" within the weekday.`);
 
     ids.add(task.id);
