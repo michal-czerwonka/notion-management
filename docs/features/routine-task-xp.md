@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation complete; ready for feature review
+Feature review complete; not ready — important findings remain
 
 ## Goal
 
@@ -388,7 +388,107 @@ to be rejected rather than silently applied to the next occurrence.
 
 ## Review findings
 
+Review date: 2026-09-17
+
+Comparison base: `main...HEAD`
+
+The local `main` branch was used as required. Its freshness relative to the remote was not
+verified because the review did not fetch or otherwise alter Git state.
+
+### Important — Late routine responses can replace a newer or different-day client state
+
+`RoutineTasksPage` applies successful mutation results and same-day conflict occurrences to
+whatever list is current when the response arrives. It does not verify that the current list
+still has the request's `expectedBusinessDate`, nor that the response version is at least as
+new as the currently rendered occurrence. A scheduled 03:00 reload, manual refresh, or update
+from another client can therefore install a newer list before an older mutation response
+arrives; the late response then replaces that newer row. Across the business-day boundary it
+can render the previous day's occurrence in the new day's list. The backend remains protected
+by its date and version preconditions, but the Android UI can temporarily present stale or
+wrong-day confirmed state and send a follow-up request from that stale version.
+
+Recommendation: apply mutation and conflict responses only when the currently rendered
+business date matches the response/request business date and the returned occurrence is not
+older than the currently rendered version. Otherwise discard the late row update and reload
+the authoritative list. Cover the race between a mutation, manual refresh, scheduled boundary
+refresh, and a second-client update during the next implementation pass.
+
+Status: unresolved.
+
+### Important — Client documentation contradicts the implemented source of truth
+
+`NotionManagementApp/README.md` first states that the Function App and repository-level
+`config/routine-tasks.json` are authoritative, but the following paragraphs still direct
+maintainers to the deleted `src/config/routine-tasks.json`, say entries contain only `id` and
+`name`, and claim completion and skip state remain only in `localStorage` with no Function App
+events. This contradicts the feature's central configuration, persistence, and XP data-flow
+decisions and can cause incorrect future configuration or maintenance work.
+
+Recommendation: replace the obsolete paragraphs with the current shared configuration shape,
+required `effort`, backend-persisted confirmed state, retry behavior, and 03:00 server-owned
+business-day refresh.
+
+Status: unresolved.
+
+### Suggestion — Current diff does not pass the recorded whitespace check
+
+`git diff --check main...HEAD` reports trailing blank lines at the ends of
+`RoutineTaskConfiguration.cs`, `RoutineTaskModels.cs`, and `RoutineTaskOptions.cs`. This does
+not affect runtime behavior, but it contradicts the implementation-stage validation note that
+the whitespace check passed.
+
+Recommendation: remove the three extra EOF blank lines and rerun `git diff --check`.
+
+Status: unresolved.
+
+### Review validation
+
+- `dotnet build NotionManagement.sln` succeeded with zero warnings and zero errors.
+- The routine configuration validator and `tsc --noEmit` succeeded.
+- Vite production bundling succeeded when directed to
+  `artifacts/review-routine-task-xp-vite`.
+- The standard `npm run build` reached Vite after successful configuration and TypeScript
+  validation, but Vite could not remove the existing `NotionManagementApp/dist/assets`
+  directory because Windows returned `EPERM`. This appears to be a local filesystem lock; it
+  prevented validating the standard output-directory cleanup path in this review.
+- `git diff --check main...HEAD` reported the three whitespace issues described above.
+- Cosmos-backed and on-device Android scenarios were not executed.
+
 ## Manual acceptance checklist
+
+- [ ] Start with no occurrence document for the current business day and confirm the backend
+  returns every configured routine as `pending`, version `0`, with the expected effort and XP.
+- [ ] Complete a routine and confirm the UI changes only after the response, one transition and
+  one `routine` XP award are stored, and all-time/day/week/month/year values increase by the
+  configured amount.
+- [ ] Confirm the XP event-history endpoint exposes routine awards and revocations with
+  `subjectType = routine`, while legacy regular-task events without the field resolve as
+  `subjectType = task`.
+- [ ] Reopen and recomplete a routine on the same business day; confirm the original award is
+  revoked exactly once and only one active net award remains.
+- [ ] Change configured effort after completion, then reopen and recomplete; confirm revocation
+  uses the original snapshot and recompletion uses the new effort and XP mapping.
+- [ ] Exercise `pending -> skipped`, `skipped -> pending`, `skipped -> completed`, and
+  `completed -> skipped`; confirm every actual transition remains in routine audit history and
+  only completion-boundary transitions create XP events.
+- [ ] Retry an accepted operation after losing its response and confirm the same result is
+  replayed without another transition or XP change. Reuse that operation ID with a different
+  payload and confirm a conflict.
+- [ ] Send two operations from the same expected version and confirm only the first is accepted;
+  the second returns current authoritative state without audit or XP side effects.
+- [ ] Simulate a backend failure and confirm Android keeps the last confirmed state and retries
+  with the same operation ID.
+- [ ] Race a mutation with manual refresh, another-client update, and the scheduled 03:00
+  refresh; confirm no late response can replace a newer occurrence or place the previous day's
+  occurrence into the new day's list.
+- [ ] Keep the routine screen open across 03:00 Europe/Warsaw and confirm an old-day mutation is
+  rejected or safely discarded and the new business-day schedule is loaded.
+- [ ] Confirm pre-feature `localStorage` state is neither uploaded nor converted into database
+  history or XP.
+- [ ] Confirm missing, empty, and unsupported effort values fail frontend build validation and
+  backend startup configuration loading.
+- [ ] Restart the Function App and application, then confirm completed and skipped current-day
+  state remains available from Cosmos DB.
 
 ## Open questions
 
