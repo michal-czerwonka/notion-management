@@ -16,10 +16,25 @@ public sealed class TaskXpOptions : IValidatableObject
     [Range(1, int.MaxValue)] public int Medium { get; init; } = 25;
     [Range(1, int.MaxValue)] public int Hard { get; init; } = 50;
     [Range(1, int.MaxValue)] public int Epic { get; init; } = 100;
+    [Required] public string ProgressReconciliationSchedule { get; init; } = "0 0 3 * * *";
+    [MinLength(1)] public IReadOnlyList<DailyTargetOption> DailyTargets { get; init; } = [];
     public IEnumerable<ValidationResult> Validate(ValidationContext context)
     {
         if (string.IsNullOrWhiteSpace(Endpoint) && string.IsNullOrWhiteSpace(ConnectionString)) yield return new("TaskXp requires Endpoint or ConnectionString.");
+        DateOnly? previous = null;
+        foreach (var target in DailyTargets)
+        {
+            if (!DateOnly.TryParseExact(target.EffectiveFrom, "yyyy-MM-dd", out var effectiveFrom)) yield return new("TaskXp daily target effectiveFrom must use yyyy-MM-dd.");
+            else if (previous is not null && effectiveFrom <= previous) yield return new("TaskXp daily target effectiveFrom values must be unique and strictly increasing.");
+            previous = effectiveFrom;
+            if (target.DailyTargetXp <= 0) yield return new("TaskXp daily targets must be positive whole XP values.");
+        }
     }
     public int XpFor(string effort) => effort switch { "Trivial" => Trivial, "Easy" => Easy, "Medium" => Medium, "Hard" => Hard, "Epic" => Epic, _ => throw new TaskXpConfigurationException("Unsupported effort mapping.") };
+}
+public sealed class DailyTargetOption
+{
+    [Required] public string EffectiveFrom { get; init; } = "";
+    public int DailyTargetXp { get; init; }
 }
 public sealed class TaskXpConfigurationException(string message) : Exception(message);

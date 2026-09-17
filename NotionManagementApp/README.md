@@ -93,7 +93,7 @@ Copy-Item .env.development-phone.example .env.development-phone
 
 Set the actual public Function App address in `development-phone`. `VITE_*` values are public and embedded in the APK, so never place tokens or Function App keys in them.
 
-The GitHub Actions development APK build creates `.env.development-phone` temporarily from `deployment/config/development.json`. `android.developmentApiUrl` supplies `VITE_INBOX_API_URL`, while `android.developmentTodayTasksApiUrl` supplies `VITE_TODAY_TASKS_API_URL`; neither value needs to be a GitHub secret.
+The GitHub Actions development APK build creates `.env.development-phone` temporarily from `deployment/config/development.json`. `android.developmentApiUrl` supplies `VITE_INBOX_API_URL`, `android.developmentTodayTasksApiUrl` supplies `VITE_TODAY_TASKS_API_URL`, and `android.developmentXpProgressApiUrl` supplies `VITE_XP_PROGRESS_API_URL`; none need to be GitHub secrets.
 
 ## 3. Build an APK
 

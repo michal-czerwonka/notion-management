@@ -38,6 +38,22 @@ public sealed class TaskXpFunctions(TaskXpService taskXp, NotionTodayTasksClient
         catch (CosmosException) { return await JsonAsync(request, HttpStatusCode.BadRequest, new { error = "Invalid continuation token or unavailable task progress." }, cancellationToken); }
     }
 
+    [Function("GetTaskXpProgress")]
+    public async Task<HttpResponseData> ProgressAsync([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "task-xp/{segment}/progress")] HttpRequestData request, string segment, CancellationToken cancellationToken)
+    {
+        if (!Authorize(segment)) return request.CreateResponse(HttpStatusCode.NotFound);
+        var values = ParseQuery(request.Url.Query);
+        var periodName = values.GetValueOrDefault("period") ?? "day";
+        var periodStart = values.GetValueOrDefault("periodStart");
+        BusinessPeriod? period = string.IsNullOrWhiteSpace(periodStart)
+            ? TryCurrentPeriod(periodName)
+            : taskXp.ParsePeriod(periodName, periodStart);
+        if (period is null) return await JsonAsync(request, HttpStatusCode.BadRequest, new { error = "period and normalized periodStart are required." }, cancellationToken);
+        if (!taskXp.IsEligible(period)) return request.CreateResponse(HttpStatusCode.NotFound);
+        try { return await JsonAsync(request, HttpStatusCode.OK, await taskXp.GetProgressAsync(period, cancellationToken), cancellationToken); }
+        catch (CosmosException) { return await JsonAsync(request, HttpStatusCode.ServiceUnavailable, new { error = "Task progress is temporarily unavailable." }, cancellationToken); }
+    }
+
     [Function("ReceiveNotionTaskXpWebhook")]
     public async Task<HttpResponseData> WebhookAsync([HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "notion/task-xp-webhook")] HttpRequestData request, CancellationToken cancellationToken)
     {
@@ -70,6 +86,11 @@ public sealed class TaskXpFunctions(TaskXpService taskXp, NotionTodayTasksClient
     }
 
     private bool Authorize(string segment) => CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(segment), Encoding.UTF8.GetBytes(options.Value.ReadRouteSegment));
+    private BusinessPeriod? TryCurrentPeriod(string period)
+    {
+        try { return taskXp.CurrentPeriod(period, DateTimeOffset.UtcNow); }
+        catch (ArgumentOutOfRangeException) { return null; }
+    }
     private bool IsValidSignature(string body, string? supplied)
     {
         var secret = options.Value.NotionWebhookVerificationToken;

@@ -2,7 +2,7 @@
 
 ## Status
 
-Technical design complete; implementation not started
+Implementation complete
 
 ## Goal
 
@@ -141,9 +141,15 @@ The Android application adds an `xp-progress` API module and a `XpProgressPage`,
 
 ## Implementation notes
 
+- Added Europe/Warsaw 03:00 business-period calculation and effective-dated target validation.
+- Award and revoke writes now update deterministic day, week, month, and year aggregates in the existing Cosmos transactional batch.
+- Added the scheduled target reconciler, aggregate progress endpoint, Android progress screen, deployment settings, and documentation.
 
 ## Validation performed
 
+- `dotnet build NotionManagement.sln` completed successfully with 0 warnings and 0 errors.
+- `npm run build` in `NotionManagementApp` completed successfully.
+- Inspected the complete working-tree diff and ran `git diff --check` successfully.
 
 ## Review findings
 

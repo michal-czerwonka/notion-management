@@ -78,11 +78,15 @@ jobs:
               "TaskXp__Medium=$(jq -r '.functionApp.taskXpMedium' "$config")" \
               "TaskXp__Hard=$(jq -r '.functionApp.taskXpHard' "$config")" \
               "TaskXp__Epic=$(jq -r '.functionApp.taskXpEpic' "$config")" \
+              "TaskXp__ProgressReconciliationSchedule=$(jq -r '.functionApp.taskXpProgressReconciliationSchedule' "$config")" \
               "TaskXp__NotionWebhookVerificationToken=$NOTION_WEBHOOK_VERIFICATION_TOKEN" \
               "Notion__Token=$NOTION_TOKEN" \
               "Ntfy__BaseUrl=$(jq -r '.functionApp.ntfyBaseUrl' "$config")" \
               "Ntfy__Topic=$NTFY_TOPIC" \
             --output none
+
+          mapfile -t task_xp_daily_targets < <(jq -r '.functionApp.taskXpDailyTargets | to_entries[] | "TaskXp__DailyTargets__\(.key)__EffectiveFrom=\(.value.effectiveFrom)", "TaskXp__DailyTargets__\(.key)__DailyTargetXp=\(.value.dailyTargetXp)"' "$config")
+          az functionapp config appsettings set --resource-group "$resource_group" --name "$function_app" --settings "${task_xp_daily_targets[@]}" --output none
 
           while IFS= read -r origin; do
             az functionapp cors add \

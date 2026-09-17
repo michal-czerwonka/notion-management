@@ -90,6 +90,8 @@ Required settings:
 - `TaskXp:Database` / `TaskXp:Container` - defaults: `task-xp` / `progression`; the container partition key is `/profileId`.
 - `TaskXp:ReadRouteSegment` - long random segment used by the anonymous Task XP read endpoints.
 - `TaskXp:NotionWebhookVerificationToken` - secret used to verify the Notion Task XP webhook HMAC.
+- `TaskXp:DailyTargets:<index>:EffectiveFrom` / `DailyTargetXp` - append-only effective-dated daily XP target history. Dates use `yyyy-MM-dd` business dates and targets are positive whole numbers.
+- `TaskXp:ProgressReconciliationSchedule` - NCRONTAB timer, normally `0 0 3 * * *` in the Function App's Europe/Warsaw timezone.
 
 For Azure app settings, use the equivalent environment variable names, for example `Notion__Token` and `Notion__DataSourceId`.
 
@@ -105,6 +107,7 @@ The anonymous read API is deliberately obscured, not authenticated:
 
 - `GET /api/task-xp/<TaskXp:ReadRouteSegment>/total` returns `{ "totalXp": 0 }`.
 - `GET /api/task-xp/<TaskXp:ReadRouteSegment>/events?limit=1..100&continuationToken=<opaque>` returns newest-first logical XP events and an opaque continuation token.
+- `GET /api/task-xp/<TaskXp:ReadRouteSegment>/progress?period=day|week|month|year&periodStart=yyyy-MM-dd` returns the selected period aggregate and an optional previous period. The target schedule must be deployed before 03:00 Europe/Warsaw on its effective date; the daily timer backfills and reconciles target snapshots without changing signed XP.
 
 Created tasks set these Notion properties:
 
