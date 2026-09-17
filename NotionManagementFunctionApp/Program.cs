@@ -57,6 +57,8 @@ var host = new HostBuilder()
                 : new CosmosClient(options.ConnectionString);
         });
         services.AddSingleton<TaskXpRepository>();
+        services.AddSingleton<BusinessPeriodCalculator>();
+        services.AddSingleton<DailyTargetSchedule>();
         services.AddSingleton<TaskXpService>();
     })
     .Build();

@@ -90,6 +90,8 @@ Required settings:
 - `TaskXp:Database` / `TaskXp:Container` - defaults: `task-xp` / `progression`; the container partition key is `/profileId`.
 - `TaskXp:ReadRouteSegment` - long random segment used by the anonymous Task XP read endpoints.
 - `TaskXp:NotionWebhookVerificationToken` - secret used to verify the Notion Task XP webhook HMAC.
+- `TaskXp:DailyTargets:<index>:EffectiveFrom` / `DailyTargetXp` - append-only effective-dated daily XP target history. Dates use `yyyy-MM-dd` business dates and targets are positive whole numbers.
+- `TaskXp:ProgressReconciliationSchedule` - NCRONTAB timer, normally `0 0 3 * * *` in the Function App's Europe/Warsaw timezone.
 
 For Azure app settings, use the equivalent environment variable names, for example `Notion__Token` and `Notion__DataSourceId`.
 
@@ -105,6 +107,7 @@ The anonymous read API is deliberately obscured, not authenticated:
 
 - `GET /api/task-xp/<TaskXp:ReadRouteSegment>/total` returns `{ "totalXp": 0 }`.
 - `GET /api/task-xp/<TaskXp:ReadRouteSegment>/events?limit=1..100&continuationToken=<opaque>` returns newest-first logical XP events and an opaque continuation token.
+- `GET /api/task-xp/<TaskXp:ReadRouteSegment>/progress?period=day|week|month|year&periodStart=yyyy-MM-dd` returns the selected period aggregate and an optional previous period. The target schedule must be deployed before 03:00 Europe/Warsaw on its effective date; the daily timer backfills and reconciles target snapshots without changing signed XP.
 
 Created tasks set these Notion properties:
 
@@ -120,10 +123,10 @@ GitHub Actions deploys the Function App and builds/uploads the development Andro
 
 ### Local `git deploy` alias
 
-To publish `development` to `main` locally, configure this global Git alias once:
+To publish the current branch to `main` locally, configure this global Git alias once:
 
 ```powershell
-git config --global alias.deploy '!f() { set -e; branch=$(git branch --show-current); if [ "$branch" != "development" ]; then echo "Run deploy from the development branch." >&2; exit 1; fi; if [ -n "$(git status --porcelain)" ]; then echo "Working tree is not clean." >&2; exit 1; fi; git fetch origin; if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/development)" ]; then echo "Local development differs from origin/development. Synchronize the branch first." >&2; exit 1; fi; git switch main; if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then echo "Local main differs from origin/main. Synchronize the branch first." >&2; exit 1; fi; git merge --no-ff --no-edit development; git push origin main; git switch development; }; f'
+git config --global alias.deploy '!f() { set -e; branch=$(git branch --show-current); if [ -z "$branch" ]; then echo "Deploy cannot run from a detached HEAD." >&2; exit 1; fi; if [ -n "$(git status --porcelain)" ]; then echo "Working tree is not clean." >&2; exit 1; fi; git fetch origin; if [ "$branch" != "main" ]; then if ! git show-ref --verify --quiet "refs/remotes/origin/$branch"; then echo "The current branch does not exist on origin." >&2; exit 1; fi; if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/$branch)" ]; then echo "The current branch differs from origin/$branch. Synchronize the branch first." >&2; exit 1; fi; fi; git switch main; git pull --ff-only origin main; if [ "$branch" != "main" ]; then git merge --no-ff --no-edit "$branch"; fi; git push origin main; if [ "$branch" != "main" ]; then git switch "$branch"; fi; }; f'
 ```
 
 Then run this command from any subdirectory of the repository:
@@ -132,7 +135,7 @@ Then run this command from any subdirectory of the repository:
 git deploy
 ```
 
-The alias requires a clean working tree, starts only from the `development` branch, and requires both local `development` and `main` to match `origin`. It merges `development` into `main`, pushes `main` to `origin` (triggering deployments), and returns to `development` after a successful push. On a conflict or error, it remains on `main` so that the state requiring manual action is not hidden.
+The alias requires a clean working tree and a current branch that exists on `origin` and matches its remote-tracking branch. It fetches remote changes, switches to `main`, updates it from `origin/main` with a fast-forward-only pull, merges the original branch into `main`, pushes `main` to `origin` (triggering deployments), and returns to the original branch after a successful push. When run from `main`, it only updates and pushes `main`. On a merge conflict or error after switching branches, it remains on `main` so that the state requiring manual action is not hidden.
 
 The alias is stored locally in the user's global Git configuration (`~/.gitconfig`, typically `C:\Users\<user>\.gitconfig` on Windows). It therefore does not appear in `git status` and must be configured separately on each machine.
 

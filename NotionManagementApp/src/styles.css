@@ -99,6 +99,16 @@ h3 { font-size: 18px; font-weight: 500; color: #403648; margin-bottom: 8px; }
 .empty-state p { font-size: 14px; line-height: 1.6; margin-bottom: 0; }
 .state { color: #706878; padding: 16px 0; }
 .error { color: #922c27; background: #fff0ed; border-radius: 12px; padding: 14px 16px; line-height: 1.5; font-size: 14px; }
+.xp-progress-card { display: grid; gap: 20px; background: #fff; border: 1px solid #e8e2ee; border-radius: 24px; padding: 24px; box-shadow: 0 3px 12px #30204006; }
+.xp-periods { display: flex; flex-wrap: wrap; gap: 6px; }
+.xp-periods button { min-height: 40px; padding: 0 16px; border-radius: 14px; background: #f1ecf6; color: #584274; }
+.xp-periods button.active { background: #67508f; color: #fff; }
+.xp-total { margin: 0; color: #403648; font-size: 28px; font-weight: 600; }
+.xp-total.success { color: #287342; }
+.xp-progress-track { height: 18px; overflow: hidden; border-radius: 999px; background: #e9e3f0; }
+.xp-progress-fill { height: 100%; border-radius: inherit; background: #67508f; transition: width .2s ease; }
+.xp-progress-fill.success { background: #34834d; }
+.previous-period { justify-self: start; min-height: 42px; padding: 0 16px; background: #f1ecf6; color: #584274; }
 @media (max-width: 420px) {
   .app-shell { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
   .capture-card { padding: 18px; }
