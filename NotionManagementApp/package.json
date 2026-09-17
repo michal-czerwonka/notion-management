@@ -6,7 +6,7 @@
   "engines": { "node": ">=22.0.0" },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "tsc --noEmit && vite build",
+    "build": "node scripts/validate-routine-tasks.mjs && tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "android:sync": "npm run build && cap sync android",
     "android:open": "cap open android",
