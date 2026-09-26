@@ -31,7 +31,12 @@ public sealed class CompletedTaskBackfill
         var issues = new List<BackfillIssue>();
         var snapshots = new List<CompletedTaskSnapshot>();
         var corrections = new List<(XpEventDocument Revoke, int Amount)>();
-        foreach (var group in events.GroupBy(item => (SubjectType: string.IsNullOrWhiteSpace(item.SubjectType) ? "task" : item.SubjectType, item.TaskId)))
+        foreach (var group in events.GroupBy(item =>
+        {
+            var subjectType = string.IsNullOrWhiteSpace(item.SubjectType) ? "task" : item.SubjectType;
+            return (SubjectType: subjectType, item.TaskId,
+                RoutineBusinessDate: subjectType == "routine" ? _periods.BusinessDate(item.OccurredAt).ToString("yyyy-MM-dd") : "");
+        }))
         {
             XpEventDocument? active = null;
             foreach (var item in group.OrderBy(item => item.OccurredAt).ThenBy(item => item.RecordedAt).ThenBy(item => item.Id, StringComparer.Ordinal))
@@ -188,7 +193,9 @@ public sealed class CompletedTaskBackfill
             foreach (var item in await iterator.ReadNextAsync(cancellationToken))
             {
                 var subjectType = string.IsNullOrWhiteSpace(item.SubjectType) ? "task" : item.SubjectType;
-                if (subjectType == snapshot.SubjectType) events.Add(item);
+                if (subjectType == snapshot.SubjectType &&
+                    (subjectType != "routine" || _periods.BusinessDate(item.OccurredAt).ToString("yyyy-MM-dd") == snapshot.BusinessDate))
+                    events.Add(item);
             }
         }
         var ordered = events.OrderBy(item => item.OccurredAt).ThenBy(item => item.RecordedAt)
