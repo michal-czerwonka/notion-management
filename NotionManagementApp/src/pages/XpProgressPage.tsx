@@ -42,19 +42,43 @@ export function XpProgressPage() {
     </section>
     {progress && !loading && !error && progress.completedTasks && <section className="xp-history" aria-label="Ukończone zadania">
       <h2>Ukończone zadania</h2>
-      <CompletionGroup title="Rutyny" tasks={progress.completedTasks.filter(task => task.subjectType === 'routine')} />
-      <CompletionGroup title="Zadania" tasks={progress.completedTasks.filter(task => task.subjectType === 'task')} />
+      <CompletionHistory period={progress.period} tasks={progress.completedTasks} />
     </section>}
   </>;
 }
 function periodLabel(progress: XpProgress) { return `${labels[progress.period]}: ${progress.periodStart} – ${progress.periodEndExclusive}`; }
-function CompletionGroup({ title, tasks }: { title: string; tasks: CompletedTask[] }) {
+
+function CompletionHistory({ period, tasks }: { period: XpPeriod; tasks: CompletedTask[] }) {
+  if (period === 'day') return <>
+    <CompletionGroup title="Rutyny" tasks={tasks.filter(task => task.subjectType === 'routine')} showEmpty />
+    <CompletionGroup title="Zadania" tasks={tasks.filter(task => task.subjectType === 'task')} showEmpty />
+  </>;
+
   const groups = new Map<string, CompletedTask[]>();
   for (const task of tasks) groups.set(task.businessDate, [...(groups.get(task.businessDate) ?? []), task]);
-  return <div className="xp-history-group"><h3>{title}</h3>{tasks.length === 0 ? <p className="hint">Brak ukończonych zadań.</p> :
-    [...groups].sort(([a], [b]) => b.localeCompare(a)).map(([date, entries]) => <div key={date} className="xp-history-day"><h4>{date}</h4><ul>{entries.sort((a, b) => b.completedAt.localeCompare(a.completedAt) || b.id.localeCompare(a.id)).map(task =>
-      <li key={task.id}><strong>{task.taskName}</strong><time dateTime={task.completedAt}>{new Intl.DateTimeFormat('pl-PL', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Warsaw' }).format(new Date(task.completedAt))}</time>
-        {task.projects?.map((project, index) => <span key={`${index}:${project}`} className="xp-history-meta">{project}</span>)}
-        {task.observedEffort && <span className="xp-history-meta">{task.observedEffort}</span>}</li>)}</ul></div>)}
+  if (groups.size === 0) return <p className="hint">Brak ukończonych zadań w tym okresie.</p>;
+
+  return [...groups].sort(([a], [b]) => b.localeCompare(a)).map(([date, entries]) =>
+    <section className="xp-history-day" key={date}>
+      <h3>{date}</h3>
+      <CompletionGroup title="Rutyny" tasks={entries.filter(task => task.subjectType === 'routine')} nested />
+      <CompletionGroup title="Zadania" tasks={entries.filter(task => task.subjectType === 'task')} nested />
+    </section>
+  );
+}
+
+function CompletionGroup({ title, tasks, nested = false, showEmpty = false }: { title: string; tasks: CompletedTask[]; nested?: boolean; showEmpty?: boolean }) {
+  if (tasks.length === 0 && !showEmpty) return null;
+  const heading = nested ? <h4>{title}</h4> : <h3>{title}</h3>;
+  return <div className="xp-history-group">
+    {heading}
+    {tasks.length === 0 ? <p className="hint">Brak ukończonych zadań.</p> :
+      <ul>{[...tasks].sort((a, b) => b.completedAt.localeCompare(a.completedAt) || b.id.localeCompare(a.id)).map(task =>
+        <li key={task.id}>
+          <strong>{task.taskName}</strong>
+          <time dateTime={task.completedAt}>{new Intl.DateTimeFormat('pl-PL', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Warsaw' }).format(new Date(task.completedAt))}</time>
+          {task.projects?.map((project, index) => <span key={`${index}:${project}`} className="xp-history-meta">{project}</span>)}
+          {task.observedEffort && <span className="xp-history-meta">{task.observedEffort}</span>}
+        </li>)}</ul>}
   </div>;
 }

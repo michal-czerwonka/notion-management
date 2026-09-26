@@ -2,7 +2,7 @@
 
 ## Status
 
-Review fixes implemented; historical backfill and manual acceptance remain pending.
+Implementation and testing completed successfully; the user confirmed the feature works.
 
 ## Goal
 
@@ -189,8 +189,8 @@ Approved implementation sequence:
 - `npm run build` in `NotionManagementApp`: passed. The initial sandboxed build could not write `dist`; rerunning with filesystem permission completed successfully.
 - `git diff --check`: passed.
 - Follow-up concurrency fix: Function App build passed with zero warnings and errors; the new migration path has not been exercised against Cosmos DB.
-- The user-provided dry-run before the routine grouping fix reported 22 candidates and 10 routine awards incorrectly skipped as consecutive awards on different business days. Rerun the dry-run after deployment of this fix; no apply was reported for those results.
-- A post-fix Cosmos DB dry-run and apply, live mutation scenarios, response inspection, and representative item/batch size measurement remain pending in the target environment.
+- The user-provided dry-run before the routine grouping fix reported 22 candidates and 10 routine awards incorrectly skipped as consecutive awards on different business days. This result led to the daily grouping fix; no apply was reported for that earlier run.
+- On 2026-09-26, the user confirmed that implementation and testing completed successfully after the routine backfill fix. Individual test results and migration run details were not recorded in this document.
 
 ## Review findings
 
@@ -201,9 +201,11 @@ Review date: 2026-09-26. Comparison base: `main...HEAD` (`bb10617...5c53433`). T
 
 Follow-up resolution (2026-09-26): The blocking concurrency finding has been addressed by current-history revalidation and a conditional state/occurrence ETag write in the same batch as all affected progress documents. The final pass reconciles all three snapshot periods against current history. The memory and scan-duration finding is accepted for the expected migration of a few dozen documents; no checkpointed scanner is planned. A repeated `apply` remains idempotent after a completed or interrupted short run.
 
-Known limitations: No production Cosmos DB dry-run or apply has been performed. Live mutation scenarios, JSON response inspection, manual acceptance, and representative Cosmos item and transactional batch size measurements remain unverified. The feature is not ready for acceptance until those checks are complete.
+The findings above record the original review. The blocking concurrency issue was fixed, and the scan-duration concern was accepted for the small migration size. The user subsequently confirmed successful implementation and testing; individual acceptance-checklist results were not recorded here.
 
 ## Manual acceptance checklist
+
+Reference checklist from the review. The user's overall test confirmation does not provide item-by-item results.
 
 - [ ] Run the backfill dry-run against representative legacy regular and routine events. Review accepted, ambiguous, and skipped cases; confirm missing legacy projects remain absent and XP adjustments match unambiguous later-day revocations.
 - [ ] Apply the backfill and rerun `apply` to confirm no duplicate snapshots or XP adjustments. Check that every accepted completion appears exactly once in its day, week, and month documents and that adjusted XP totals reconcile. Verify that a same-day reopening during migration cannot restore an invalid snapshot.
