@@ -275,7 +275,7 @@ public sealed class NotionTodayTasksClient
 
         var status = ReadStatus(root, StatusPropertyName) ?? "(bez statusu)";
 
-        return new NotionTodayTask(pageId, name, status, await GetProjectsAsync(root, projects, cancellationToken), GetString(root, "url"));
+        return new NotionTodayTask(pageId, name, status, await GetProjectsAsync(root, projects, cancellationToken), ReadSelect(root, "Effort"), GetString(root, "url"));
     }
 
     private async Task<IReadOnlyList<string>> GetProjectsAsync(JsonElement task, Dictionary<string, string> projects, CancellationToken cancellationToken)

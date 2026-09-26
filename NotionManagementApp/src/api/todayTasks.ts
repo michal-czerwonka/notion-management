@@ -1,4 +1,4 @@
-export interface TodayTask { id: string; name: string; status: string; projects: string[]; }
+export interface TodayTask { id: string; name: string; status: string; projects: string[]; effort: string | null; }
 export interface TodayTaskStatus { name: string; color: string; }
 
 const endpoint = () => {
@@ -38,11 +38,13 @@ function toTask(value: unknown): TodayTask {
   const name = task.name;
   const status = task.status;
   const projects = task.projects;
+  const effort = task.effort;
   if (typeof id !== 'string' || typeof name !== 'string' || typeof status !== 'string' ||
-    !Array.isArray(projects) || !projects.every(project => typeof project === 'string')) {
+    !Array.isArray(projects) || !projects.every(project => typeof project === 'string') ||
+    (effort !== undefined && effort !== null && typeof effort !== 'string')) {
     throw new Error('Invalid today tasks response.');
   }
-  return { id, name, status, projects };
+  return { id, name, status, projects, effort: typeof effort === 'string' ? effort : null };
 }
 
 function toStatus(value: unknown): TodayTaskStatus {
