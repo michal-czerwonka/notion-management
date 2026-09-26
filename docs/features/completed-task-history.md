@@ -181,6 +181,7 @@ Approved implementation sequence:
 - The existing progress response returns structured completion entries; the client displays them in separate routine and regular groups, ordered by business day and completion time.
 - No production Cosmos DB backfill was run in this implementation session. The first release must run and review it before enabling the new client view.
 - Follow-up review fix: backfill now rereads award/revoke history for each candidate and guards snapshot writes with a conditional ETag update of task state or routine occurrence in the same transactional batch. A conflicting live correction causes a retry. Final reconciliation checks current acceptance across day, week, and month.
+- Routine backfill now pairs awards and revokes within each routine ID and Europe/Warsaw business day. Revalidation uses the same daily boundary. Repeated routine completions on different days no longer appear as ambiguous consecutive awards.
 
 ## Validation performed
 
@@ -188,7 +189,8 @@ Approved implementation sequence:
 - `npm run build` in `NotionManagementApp`: passed. The initial sandboxed build could not write `dist`; rerunning with filesystem permission completed successfully.
 - `git diff --check`: passed.
 - Follow-up concurrency fix: Function App build passed with zero warnings and errors; the new migration path has not been exercised against Cosmos DB.
-- Cosmos DB dry-run, apply, live mutation scenarios, response inspection, and representative item/batch size measurement remain pending in the target environment.
+- The user-provided dry-run before the routine grouping fix reported 22 candidates and 10 routine awards incorrectly skipped as consecutive awards on different business days. Rerun the dry-run after deployment of this fix; no apply was reported for those results.
+- A post-fix Cosmos DB dry-run and apply, live mutation scenarios, response inspection, and representative item/batch size measurement remain pending in the target environment.
 
 ## Review findings
 
