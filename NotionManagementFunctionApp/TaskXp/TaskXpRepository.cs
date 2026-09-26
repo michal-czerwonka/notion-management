@@ -42,28 +42,44 @@ public sealed class TaskXpRepository
             var completed = string.Equals(input.Task.Status, "Zrobione", StringComparison.Ordinal);
             var changed = state is null || state.IsCompleted != completed;
             var now = DateTimeOffset.UtcNow;
+            var activeCompletion = changed && !completed && state?.IsCompleted == true
+                ? await ResolveActiveCompletionAsync(state, cancellationToken) : null;
+            var sameDayCorrection = activeCompletion is not null &&
+                activeCompletion.BusinessDate == _periods.BusinessDate(input.OccurredAt).ToString("yyyy-MM-dd");
+            if (sameDayCorrection && state?.ActiveAwardXp is null)
+                throw new InvalidOperationException($"Cannot reverse completion for task {input.Task.PageId} without its awarded XP.");
+            var awardEvent = changed && completed ? Event(input, "award", awardXp, appliedEffort, now) : null;
+            var newCompletion = awardEvent is null ? null : Snapshot(awardEvent, input.Task.Projects);
             var activeAward = completed ? (changed ? awardXp : state?.ActiveAwardXp) : null;
-            var nextState = new TaskStateDocument { Id = "task-state:" + input.Task.PageId, TaskId = input.Task.PageId, IsCompleted = completed, LatestOccurredAt = input.OccurredAt, CompletionCycle = (state?.CompletionCycle ?? 0) + (changed && completed ? 1 : 0), ActiveAwardXp = activeAward };
+            var nextState = new TaskStateDocument { Id = "task-state:" + input.Task.PageId, TaskId = input.Task.PageId, IsCompleted = completed, LatestOccurredAt = input.OccurredAt, CompletionCycle = (state?.CompletionCycle ?? 0) + (changed && completed ? 1 : 0), ActiveAwardXp = activeAward,
+                ActiveCompletionId = newCompletion?.Id ?? (completed ? state?.ActiveCompletionId : null),
+                ActiveCompletionAt = newCompletion?.CompletedAt ?? (completed ? state?.ActiveCompletionAt : null),
+                ActiveCompletionBusinessDate = newCompletion?.BusinessDate ?? (completed ? state?.ActiveCompletionBusinessDate : null) };
             XpEventDocument? xpEvent = null;
             var nextTotal = total.TotalXp;
-            if (changed && completed) { xpEvent = Event(input, "award", awardXp, appliedEffort, now); nextTotal += awardXp; }
-            else if (changed && state?.ActiveAwardXp is int existingAward) { xpEvent = Event(input, "revoke", -existingAward, appliedEffort, now); nextTotal -= existingAward; }
+            if (awardEvent is not null) { xpEvent = awardEvent; nextTotal += awardXp; }
+            else if (changed && sameDayCorrection && state?.ActiveAwardXp is int existingAward) { xpEvent = Event(input, "revoke", -existingAward, appliedEffort, now); nextTotal -= existingAward; }
             var totalDocument = new XpTotalDocument { TotalXp = nextTotal, ETag = total.ETag };
-            var progress = xpEvent is null ? [] : await ReadProgressAsync(_periods.ForEvent(xpEvent.OccurredAt), cancellationToken);
+            var affectedPeriods = newCompletion is not null ? _periods.ForEvent(newCompletion.CompletedAt) :
+                sameDayCorrection ? _periods.ForEvent(activeCompletion!.CompletedAt) : [];
+            var progress = affectedPeriods.Count == 0 ? [] : await ReadProgressAsync(affectedPeriods, cancellationToken);
             var batch = _container.CreateTransactionalBatch(new PartitionKey(ProfileId)).CreateItem(new DeliveryReceiptDocument { Id = receiptId, Source = input.Source, SourceEventId = input.SourceEventId, TaskId = input.Task.PageId, OccurredAt = input.OccurredAt, ReceivedAt = now });
             if (state is null) batch.CreateItem(nextState); else batch.ReplaceItem(nextState.Id, nextState, new TransactionalBatchItemRequestOptions { IfMatchEtag = state.ETag });
             if (total.ETag is null) batch.CreateItem(totalDocument); else batch.ReplaceItem(totalDocument.Id, totalDocument, new TransactionalBatchItemRequestOptions { IfMatchEtag = total.ETag });
             if (xpEvent is not null) batch.CreateItem(xpEvent);
-            if (xpEvent is not null)
+            if (affectedPeriods.Count > 0)
             {
-                foreach (var period in _periods.ForEvent(xpEvent.OccurredAt))
+                foreach (var period in affectedPeriods)
                 {
                     var existing = progress.Single(item => item.Period.Id == period.Id).Document;
+                    var completedTasks = period.Period == "year" ? null : (existing?.CompletedTasks ?? []).ToList();
+                    if (newCompletion is not null && completedTasks is not null && !completedTasks.Any(item => item.Id == newCompletion.Id)) completedTasks.Add(newCompletion);
+                    if (sameDayCorrection && completedTasks is not null) completedTasks.RemoveAll(item => item.Id == activeCompletion!.Id);
                     var next = new XpProgressDocument
                     {
                         Id = period.Id, Period = period.Period, PeriodStart = period.Start.ToString("yyyy-MM-dd"),
-                        PeriodEndExclusive = period.EndExclusive.ToString("yyyy-MM-dd"), SignedXp = (existing?.SignedXp ?? 0) + xpEvent.XpAmount,
-                        TargetXp = existing?.TargetXp ?? _targets.TargetFor(period), ETag = existing?.ETag
+                        PeriodEndExclusive = period.EndExclusive.ToString("yyyy-MM-dd"), SignedXp = (existing?.SignedXp ?? 0) + (xpEvent?.XpAmount ?? 0),
+                        TargetXp = existing?.TargetXp ?? _targets.TargetFor(period), CompletedTasks = completedTasks, ETag = existing?.ETag
                     };
                     if (existing is null) batch.CreateItem(next); else batch.ReplaceItem(next.Id, next, new TransactionalBatchItemRequestOptions { IfMatchEtag = existing.ETag });
                 }
@@ -123,7 +139,7 @@ public sealed class TaskXpRepository
     {
         var document = await ReadOrDefaultAsync<XpProgressDocument>(period.Id, cancellationToken);
         var previous = Previous(period);
-        return new XpProgressResult(period.Period, period.Start.ToString("yyyy-MM-dd"), period.EndExclusive.ToString("yyyy-MM-dd"), Math.Max(0, document?.SignedXp ?? 0), document?.TargetXp ?? _targets.TargetFor(period), previous?.Start.ToString("yyyy-MM-dd"));
+        return new XpProgressResult(period.Period, period.Start.ToString("yyyy-MM-dd"), period.EndExclusive.ToString("yyyy-MM-dd"), Math.Max(0, document?.SignedXp ?? 0), document?.TargetXp ?? _targets.TargetFor(period), previous?.Start.ToString("yyyy-MM-dd"), period.Period == "year" ? null : document?.CompletedTasks ?? []);
     }
 
     public async Task ReconcileTargetsAsync(DateOnly businessDate, CancellationToken cancellationToken)
@@ -145,7 +161,7 @@ public sealed class TaskXpRepository
             var document = new XpProgressDocument
             {
                 Id = period.Id, Period = period.Period, PeriodStart = period.Start.ToString("yyyy-MM-dd"), PeriodEndExclusive = period.EndExclusive.ToString("yyyy-MM-dd"),
-                SignedXp = existing?.SignedXp ?? 0, TargetXp = _targets.TargetFor(period), ETag = existing?.ETag
+                SignedXp = existing?.SignedXp ?? 0, TargetXp = _targets.TargetFor(period), CompletedTasks = existing?.CompletedTasks, ETag = existing?.ETag
             };
             try
             {
@@ -185,6 +201,28 @@ public sealed class TaskXpRepository
     {
         try { await _container.CreateItemAsync(new DeliveryReceiptDocument { Id = id, Source = input.Source, SourceEventId = input.SourceEventId, TaskId = input.Task.PageId, OccurredAt = input.OccurredAt, ReceivedAt = DateTimeOffset.UtcNow }, new PartitionKey(ProfileId), cancellationToken: cancellationToken); }
         catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Conflict) { }
+    }
+    private CompletedTaskSnapshot Snapshot(XpEventDocument award, IReadOnlyList<string>? projects) =>
+        new(award.Id, award.SubjectType, award.TaskId, award.TaskName, award.OccurredAt,
+            _periods.BusinessDate(award.OccurredAt).ToString("yyyy-MM-dd"), award.ObservedEffort,
+            projects is { Count: > 0 } ? projects.ToArray() : null);
+
+    private async Task<CompletedTaskSnapshot> ResolveActiveCompletionAsync(TaskStateDocument state, CancellationToken cancellationToken)
+    {
+        if (state.ActiveCompletionId is not null && state.ActiveCompletionAt is not null && state.ActiveCompletionBusinessDate is not null)
+            return new CompletedTaskSnapshot(state.ActiveCompletionId, "task", state.TaskId, "", state.ActiveCompletionAt.Value, state.ActiveCompletionBusinessDate, null, null);
+
+        var query = new QueryDefinition("SELECT * FROM c WHERE c.profileId = @profileId AND c.type = 'xp-event' AND (NOT IS_DEFINED(c.subjectType) OR c.subjectType = 'task') AND c.taskId = @taskId ORDER BY c.occurredAt DESC")
+            .WithParameter("@profileId", ProfileId).WithParameter("@taskId", state.TaskId);
+        using var iterator = _container.GetItemQueryIterator<XpEventDocument>(query, requestOptions: new QueryRequestOptions { PartitionKey = new PartitionKey(ProfileId), MaxItemCount = 100 });
+        var events = new List<XpEventDocument>();
+        while (iterator.HasMoreResults)
+            events.AddRange(await iterator.ReadNextAsync(cancellationToken));
+        var latest = events.OrderByDescending(item => item.OccurredAt).ThenByDescending(item => item.RecordedAt).FirstOrDefault();
+        if (latest is null || latest.ChangeType != "award" ||
+            events.Count(item => item.ChangeType == "award" && item.OccurredAt == latest.OccurredAt) != 1)
+            throw new InvalidOperationException($"Cannot resolve active completion for task {state.TaskId} from unambiguous award history.");
+        return Snapshot(latest, null);
     }
     private static XpEventDocument Event(TaskXpInput input, string changeType, int amount, string effort, DateTimeOffset now) => new() { Id = "xp-event:" + Guid.NewGuid().ToString("N"), TaskId = input.Task.PageId, TaskName = input.Task.Name, SubjectType = "task", ChangeType = changeType, XpAmount = amount, ObservedEffort = input.Task.Effort, Effort = effort, Source = input.Source, OccurredAt = input.OccurredAt, RecordedAt = now };
 }
