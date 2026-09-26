@@ -2,7 +2,7 @@
 
 ## Status
 
-Business discovery complete; ready for technical design
+Technical design complete; ready for implementation
 
 ## Goal
 
@@ -23,7 +23,7 @@ Add a completed-task section below the entire current XP progress section. Show 
 - Completed-task results must follow the selected XP period rather than being an unrelated all-time list.
 - Day, week, month, and year views must include all task completions attributed to the selected period.
 - The period attribution of completed tasks must be consistent with the period attribution used for XP.
-- Every displayed task entry must include the task name, completion date and time, and assigned effort.
+- Every displayed task entry must include the task name and completion date and time, plus assigned effort when present.
 - Every regular-task entry must preserve and display its completion-time project assignment as secondary, visually de-emphasized text when a project is assigned.
 - Every completion must preserve and display the task name captured at completion time; later task renames must not change historical completion snapshots.
 - Individual completed-task entries must not display the awarded XP amount.
@@ -50,7 +50,7 @@ Add a completed-task section below the entire current XP progress section. Show 
 - A user views XP progress for a period and can see the completed work associated with that result.
 - A user can distinguish completed routine tasks from completed regular tasks.
 - A user switches to a week, month, or year and sees every task completion attributed to that selected period.
-- A user can identify when each task was completed and which effort was assigned to it.
+- A user can identify when each task was completed and which effort was assigned, when an effort was present.
 - A user can see the project associated with a regular task at completion without the project competing visually with the task name.
 - A user renames a task after completion and the earlier completion continues to show its original name.
 - A user sees only the metadata actually assigned to a task; missing project and effort lines are absent.
@@ -69,7 +69,7 @@ Add a completed-task section below the entire current XP progress section. Show 
 
 - Completed tasks use the same business-period model as XP progress.
 - A task completion belongs to the day, week, month, and year containing its completion time under the established XP business-period rules.
-- The completion entry exposes the task name, completion timestamp, and assigned effort.
+- The completion entry exposes the task name, completion timestamp, and observed assigned effort when present.
 - Task name is an immutable completion-time snapshot rather than a reference resolved from the task's current name.
 - Regular-task project assignment is an immutable completion-time snapshot rather than a value resolved from the task's current project assignment.
 - Project snapshots retain all source project assignments even though normal business use expects no more than one.
@@ -102,17 +102,70 @@ Add a completed-task section below the entire current XP progress section. Show 
 
 ## Technical design
 
+### Existing system and constraints (analysis, 2026-09-26)
+
+- The .NET Function App owns Task XP and routine mutations. One Cosmos DB container uses the `personal` partition for delivery receipts, task state, XP events, XP totals, period projections, routine occurrences, and routine transitions. Both mutation paths use a transactional batch and ETag retries.
+- `BusinessPeriodCalculator` defines a 03:00 Europe/Warsaw business day and derives day, Monday-based week, month, and year. The progress endpoint validates normalized period starts and eligibility against the first daily-target date.
+- Regular-task `xp-event` documents contain stable task ID, completion-time name, observed effort, applied effort, amount, event time, and change type. They do not contain projects or a durable link between an award and its correction. `task-state` retains only the latest state and active award amount; it has no active award timestamp.
+- Routine `xp-event` documents contain routine ID, name, effort, amount, and time. Routine transition documents additionally contain business date and prior/target state. Existing routine occurrences preserve only the current daily state and award, so historical accepted completion times must come from events or transitions.
+- The Notion task snapshot used for XP currently omits projects. The Today Tasks client already resolves all project relations for a different read path; a completion-time snapshot must use that information on both Android and webhook ingestion paths. Current Notion assignments cannot reconstruct historical projects.
+- The React XP screen requests one period aggregate and renders a single progress card. Its API parser validates the aggregate contract. The new result belongs below that card and must load for the same selected period.
+- Current regular-task reopening always creates a negative XP event and applies it to the *reopening* period. This conflicts with the confirmed same-business-day correction and later-day retention rules. Implementing the history list alone would leave XP and completion history inconsistent.
+- The signed Notion webhook fetches the page's current state and may miss a transient sequence completed entirely before delivery; the existing Task XP feature accepts that source limitation. Historical backfill can reconstruct only transitions actually persisted in Cosmos DB.
+
+### Approved design
+
+- The separate completion document will include subject type, stable task/routine ID, completion-time name, actual completion timestamp, derived business date, observed effort (nullable), and completion-time project names for regular tasks. Keep an internal reference to the award event or completion cycle so a same-day reopening can invalidate precisely that snapshot. Do not resolve display fields from live Notion/configuration.
+- Use the award event ID as the basis of a deterministic completion document ID. Extend regular-task state with the active completion ID, business date, and awarded amount. Create a snapshot and positive XP event atomically on completion. On a same-business-day reopening, delete the active snapshot and write a negative audit event; subtract the original award from all-time XP and the four periods containing the original completion. On a later-day reopening, clear the active state but preserve the snapshot and XP; write a delivery receipt but no XP-affecting event. The next completion starts a new occurrence. Routine batches use their existing daily occurrence to create or invalidate one active completion snapshot for that business day. Retain immutable XP and routine-transition events as the audit trail.
+- Keep the existing `/progress` contract unchanged. Add `GET /api/task-xp/{segment}/completions?period=day|week|month|year&periodStart=yyyy-MM-dd&continuationToken=<opaque>` with the same period normalization and eligibility rules. Return period bounds, a page of structured entries, and an optional continuation token. Each entry has a stable completion ID, subject type, stable subject ID, completion-time name, completion timestamp, business date, nullable observed effort, and project-name array. Do not include individual XP. Query completion documents in the `personal` partition by business-date range, then have the client load every page and group/sort entries by business date and completion time (descending, with stable ID as a tie-breaker). This keeps a full year available without one unbounded HTTP response.
+- Backfill from existing regular and routine XP events, ordered by subject identity and event time, pairing each award with the following revoke where unambiguous. Verify routine pairs against routine-transition history where available. Derive snapshot IDs from award event IDs, so retries cannot create duplicate completions; preserve absent legacy project data as absent. For unambiguous historic later-day revocations, restore the wrongly subtracted amount to all-time XP and to the four periods containing the old *reopening* event. Keep old immutable events unchanged and record a migration adjustment/marker that explains each projection correction. Never rewrite the original completion period's XP. Leave XP for ambiguous skipped cases unchanged and report possible discrepancies.
+- Run the one-time backfill as a restartable maintenance operation before enabling the new client view. First produce a dry-run report of candidate snapshots, skipped/ambiguous sequences, and XP adjustments. Apply deterministic snapshot writes and idempotent projection adjustments with ETag checks and migration markers; record completion only after post-run reconciliation. Deploy the new write behavior before starting the backfill and exclude already materialized award IDs. During the transition, a regular-task state without the new active completion reference must resolve it from unambiguous persisted award history before processing a reopen; report an unresolved case rather than guessing. The operational procedure must specify how to resume after interruption.
+
 ## Technical decisions
+
+- Persist each accepted completion as a separate snapshot document in the existing Cosmos DB container and `personal` partition.
+- Create or invalidate snapshots in the same transactional batch as XP and state changes. Track the active completion in regular-task state; later-day reopening preserves its snapshot and XP.
+- Add a paginated completion endpoint under the existing Task XP read route, while keeping the current progress contract unchanged. The application loads all pages for the selected period and groups routine and regular completions by business day.
+- During the one-time historical backfill, reconstruct every completion snapshot that can be determined unambiguously from existing Cosmos DB history. Omit ambiguous legacy cases and list them in the migration report; do not invent a completion or correction. This does not change how new completions are recorded.
+- Leave historical XP unchanged for ambiguous legacy cases omitted from the backfill. Report any possible XP-to-snapshot discrepancy for those cases instead of estimating a correction.
+- Reconcile unambiguous historic later-day revocations through durable migration adjustments, leaving original XP events intact.
 
 ## Alternatives considered
 
+- Deriving every read directly from `xp-event` history would avoid new snapshot writes, but period reads would grow with all-time history and require repeated correction pairing. Historical metadata would still be limited by what events captured. The user selected persisted completion snapshots.
+- Embedding all completed tasks in `xp-progress` documents would make simple point reads possible, but year documents would grow without a clear bound and increase write contention and Cosmos item-size risk. The selected separate occurrence documents avoid that growth.
+
 ## Architecture and data flow
+
+- Android status update or signed Notion webhook -> canonical Notion task snapshot -> Task XP service/repository -> transactional Cosmos write of state, audit event, accepted completion projection, all-time XP, and four period XP aggregates.
+- Routine mutation -> routine service/repository -> transactional Cosmos write of daily occurrence, transition audit, accepted completion projection, XP event, all-time XP, and four period XP aggregates when XP changes.
+- XP screen -> existing progress endpoint plus paginated period-completions endpoint -> structured completion entries -> two sections grouped by business date.
 
 ## Security and operational considerations
 
+- Reuse the existing unguessable Task XP read route segment and `Cache-Control: no-store` behavior; no new authentication scheme or external service is needed.
+- Backfill requires a one-time operational path with progress logging, bounded Cosmos reads/writes, restartability, and a dry-run discrepancy report. The report must identify ambiguous skipped cases. The migration must not infer missing historical project assignments from current Notion state.
+- Define the migration report format after inspecting representative legacy data. It must identify skipped snapshots and possible XP-to-snapshot discrepancies without inventing missing events or metadata.
+- Historic XP projection corrections will have separate durable migration-adjustment records. Existing `xp-event` records remain unchanged, so an old event-only sum is not a complete explanation of a migrated XP total; the adjustment records and report provide that explanation.
+- Additional completion documents and indexed period queries increase Cosmos storage and RU consumption. Check query shape and indexing against the existing container before implementation.
+
 ## Implementation plan
 
+Approved implementation sequence:
+
+1. Add a completion document model and active completion reference to regular-task state. Capture project names on the canonical Notion snapshot for both Android and webhook paths; preserve every returned relation and observed effort separately from the XP fallback.
+2. Update regular-task state and transactional batch writes for same-day invalidation, later-day retention, and subsequent completion. Extend routine batches to create/invalidate daily completion snapshots. Preserve receipt deduplication and ETag retry behavior.
+3. Implement a restartable legacy backfill with a dry-run report, deterministic snapshot IDs, per-adjustment migration markers, and historic XP reconciliation. Document the rollout order and run it before enabling the client view.
+4. Add the paginated completion endpoint, client parser, and complete-page loading. Render separate routine/regular groups below the progress card with the confirmed metadata and sorting rules.
+5. Build both applications, run the manual verification below, inspect the complete diff, and update operational and feature documentation with actual validation.
+
 ## Verification plan
+
+- Build the Function App and the React application with their existing commands; inspect the complete diff.
+- Manually verify regular completion, same-day reopen/recompletion, later-day reopen/recompletion, routine repeat across days, duplicate delivery, and delayed/out-of-order delivery around 03:00 Europe/Warsaw and period boundaries.
+- Check that each visible entry uses the completion-time name, all captured projects, observed effort only, and no per-entry XP; inspect the JSON contract for stable IDs and null/missing metadata.
+- Run backfill first in dry-run mode against representative legacy events, including both correction types and missing project data; verify restartability, no duplicate snapshots, and that unambiguous XP period/all-time totals reconcile with accepted completions. Check reported discrepancies for ambiguous cases separately.
+- Verify empty and long periods, ordering, refresh/error behavior, and consistency between selected XP and completion-history periods.
 
 ## Implementation notes
 
@@ -126,14 +179,13 @@ Add a completed-task section below the entire current XP progress section. Show 
 
 None.
 
-
 ## Decisions log
 
 | Date | Decision | Reason |
 |---|---|---|
 | 2026-09-26 | Start business discovery for Completed Task History as a separate feature. | The requested capability extends the completed XP Progress Visualization feature with task-level history and future analysis needs. |
 | 2026-09-26 | Place completed-task results below the existing XP progress section. | Preserve the current progress summary and add the supporting completed work beneath it. |
-| 2026-09-26 | Present routine tasks separately from the other requested completed-task group. | The user wants the two kinds of completed work to remain distinguishable; the exact period scope of the second group is still open. |
+| 2026-09-26 | Present routine tasks separately from regular tasks. | Both groups follow the selected XP period and remain distinguishable. |
 | 2026-09-26 | Attribute completed-task results to the same selected periods as XP. | Task history should explain the result shown for the selected XP period. |
 | 2026-09-26 | Keep the result suitable for future structured analysis such as JSON. | The user wants the accumulated history to remain reusable beyond the immediate UI. |
 | 2026-09-26 | Show all task completions attributed to the selected day, week, month, or year. | The task list should follow the selected XP period and explain the work represented by it. |
@@ -156,3 +208,7 @@ None.
 | 2026-09-26 | Use the existing Cosmos DB for NoSQL history as the only backfill source; MongoDB is not part of the system or planned scope. | The earlier MongoDB reference was a terminology mistake, and the application already has its durable history in Cosmos DB. |
 | 2026-09-26 | Omit project metadata from legacy snapshots when existing Cosmos DB history does not contain it. | Current Notion assignments are not reliable historical evidence; older entries remain valid without a project line. |
 | 2026-09-26 | Mark business discovery as complete. | The product goal, visible data, period and correction rules, historical backfill, analysis readiness, and scope boundaries are confirmed with no remaining business questions. |
+| 2026-09-26 | Persist a separate accepted-completion snapshot in the existing Cosmos DB container. | The user confirmed durable per-completion documents for predictable period reads and future structured analysis. |
+| 2026-09-26 | Backfill only unambiguous legacy completion snapshots and report ambiguous cases. | The user chose a one-time reconstruction that does not infer unsupported historical facts. |
+| 2026-09-26 | Leave XP unchanged for ambiguous legacy cases omitted from backfill and report possible discrepancies. | A correction without a reliable event sequence would be speculative. |
+| 2026-09-26 | Approve the technical design and complete the design stage. | The user accepted the completion schema, atomic correction flow, paginated read contract, and restartable historical migration plan. |
