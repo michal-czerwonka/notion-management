@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented locally; infrastructure and end-to-end verification pending
+Implemented locally; business-rule change pending technical design and implementation under Completed Task History
 
 ## Goal
 
@@ -49,8 +49,9 @@ Award XP for completed tasks. The XP amount should be derived from a task effort
 - A task is a single, logically completable action. A project is a container of tasks and is not part of the first scope.
 - A task is business-complete only when its status is `Zrobione`.
 - XP is awarded for completing tasks, not for completing projects in the first scope.
-- XP reflects the current completion state of a task. Reopening a completed task revokes its previously awarded XP.
-- When a reopened task reaches `Zrobione` again, it receives XP again.
+- XP reflects completion snapshots corrected within their business day. Reopening a task during the same business day as its completion revokes the XP awarded for that completion.
+- Reopening a task during a later business day does not revoke XP retained for the earlier completed business day.
+- When a task reopened on a later business day reaches `Zrobione` again, it receives XP again and creates another accepted completion for the new business day.
 - Changing a task's effort after completion does not change the XP already awarded for that completion.
 - After a reopen, a new completion uses the effort value applicable to that new completion.
 - Users cannot manually change XP in the first version.
@@ -220,3 +221,5 @@ None.
 | 2026-09-16 | Use one fixed `personal` Cosmos DB profile partition. | The feature is explicitly one shared personal progression system and has no user identity. |
 | 2026-09-16 | Accept the native Notion webhook limitation for a rapid direct-Notion completion → reopen → completion sequence. | Native aggregated webhooks expose the final current state, not the transient prior states; extra automation or polling is disproportionate for V1. |
 | 2026-09-16 | Complete and accept technical design and implementation planning. | The architecture, contracts, persistence, security model, limitations, verification, and implementation sequence are ready for a separate implementation stage. |
+| 2026-09-26 | Limit completion correction and XP revocation to reopening within the same business day as completion. | A same-day reopening represents correction of an accidental completion; closed daily results should remain stable. This supersedes the previous rule that every reopening revokes the active award. |
+| 2026-09-26 | Allow the same task to earn XP again after it is reopened on a later business day and completed again. | A later-day reopening starts a new completion opportunity without rewriting earlier accepted daily progress. |
