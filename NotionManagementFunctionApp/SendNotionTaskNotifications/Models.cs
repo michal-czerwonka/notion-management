@@ -1,7 +1,7 @@
 namespace NotionManagementFunctionApp.SendNotionTaskNotifications;
 
-public sealed record NotionTodayTask(string PageId, string Name, string Status, IReadOnlyList<string> Projects, string? Url);
-public sealed record TodayTask(string Id, string Name, string Status, IReadOnlyList<string> Projects);
+public sealed record NotionTodayTask(string PageId, string Name, string Status, IReadOnlyList<string> Projects, string? Effort, string? Url);
+public sealed record TodayTask(string Id, string Name, string Status, IReadOnlyList<string> Projects, string? Effort);
 public sealed record TodayTaskStatus(string Name, string Color);
 public sealed record TodayTasksResponse(IReadOnlyList<TodayTask> Tasks, IReadOnlyList<TodayTaskStatus> Statuses);
 public sealed record UpdateTodayTaskStatusRequest(string? Status);

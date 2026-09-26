@@ -39,7 +39,8 @@ input::placeholder { color: #77707f; }
 .today-details small { color: #706878; }
 .today-actions { display: flex; align-items: center; gap: 8px; }
 .status-button { min-height: 40px; background: #e8f0fb; color: #315f92; font-size: 14px; padding: 0 14px; }
-.status-options { position: absolute; z-index: 2; top: calc(100% - 8px); left: 20px; right: 20px; display: grid; gap: 6px; padding: 10px; border: 1px solid #e8e2ee; border-radius: 16px; background: white; box-shadow: 0 8px 24px #30204025; }
+.status-options { position: absolute; z-index: 2; top: calc(100% - 8px); left: 20px; right: 20px; display: grid; gap: 6px; padding: 10px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid #e8e2ee; border-radius: 16px; background: white; box-shadow: 0 8px 24px #30204025; }
+.status-options--above { top: auto; bottom: calc(100% - 8px); }
 .status-options button { display: block; width: 100%; min-height: 42px; padding: 0 14px; border-radius: 10px; text-align: left; }
 .archive-icon { display: grid; place-items: center; width: 40px; min-width: 40px; height: 40px; min-height: 40px; padding: 0; border-radius: 50%; background: transparent; color: #8f2923; font-size: 28px; font-weight: 400; line-height: 1; }
 .archive-icon:not(:disabled):hover { background: #fde9e7; }
@@ -62,6 +63,7 @@ h2 { font-size: 18px; font-weight: 600; margin: 0; }
 .text-button { background: transparent; color: #67508f; padding: 0 14px; }
 .text-button:not(:disabled):hover { background: #ede7f4; }
 ul { list-style: none; padding: 0; margin: 0; background: #fff; border: 1px solid #e8e2ee; border-radius: 20px; overflow: hidden; }
+.today-list > ul { overflow: visible; }
 li { padding: 20px; display: flex; gap: 14px; align-items: flex-start; line-height: 1.55; overflow-wrap: anywhere; white-space: pre-wrap; }
 li + li { border-top: 1px solid #eee9f2; }
 .routine-item { align-items: center; justify-content: space-between; gap: 16px; }

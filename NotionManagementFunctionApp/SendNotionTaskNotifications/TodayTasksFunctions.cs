@@ -16,7 +16,7 @@ public sealed class TodayTasksFunctions(NotionTodayTasksClient client, TaskXpSer
     {
         var tasks = await client.GetTodayViewTasksAsync(cancellationToken);
         var statuses = await client.GetStatusOptionsAsync(cancellationToken);
-        return await JsonAsync(request, HttpStatusCode.OK, new TodayTasksResponse(tasks.Select(task => new TodayTask(task.PageId, task.Name, task.Status, task.Projects)).ToArray(), statuses), cancellationToken);
+        return await JsonAsync(request, HttpStatusCode.OK, new TodayTasksResponse(tasks.Select(task => new TodayTask(task.PageId, task.Name, task.Status, task.Projects, task.Effort)).ToArray(), statuses), cancellationToken);
     }
 
     [Function("UpdateTodayTaskStatus")]
