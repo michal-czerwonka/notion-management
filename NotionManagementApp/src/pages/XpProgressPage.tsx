@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getXpProgress, type XpPeriod, type XpProgress } from '../api/xpProgress';
+import { getXpProgress, type CompletedTask, type XpPeriod, type XpProgress } from '../api/xpProgress';
 
 const labels: Record<XpPeriod, string> = { day: 'Dzień', week: 'Tydzień', month: 'Miesiąc', year: 'Rok' };
 
@@ -40,6 +40,21 @@ export function XpProgressPage() {
         </>
       )}
     </section>
+    {progress && !loading && !error && progress.completedTasks && <section className="xp-history" aria-label="Ukończone zadania">
+      <h2>Ukończone zadania</h2>
+      <CompletionGroup title="Rutyny" tasks={progress.completedTasks.filter(task => task.subjectType === 'routine')} />
+      <CompletionGroup title="Zadania" tasks={progress.completedTasks.filter(task => task.subjectType === 'task')} />
+    </section>}
   </>;
 }
 function periodLabel(progress: XpProgress) { return `${labels[progress.period]}: ${progress.periodStart} – ${progress.periodEndExclusive}`; }
+function CompletionGroup({ title, tasks }: { title: string; tasks: CompletedTask[] }) {
+  const groups = new Map<string, CompletedTask[]>();
+  for (const task of tasks) groups.set(task.businessDate, [...(groups.get(task.businessDate) ?? []), task]);
+  return <div className="xp-history-group"><h3>{title}</h3>{tasks.length === 0 ? <p className="hint">Brak ukończonych zadań.</p> :
+    [...groups].sort(([a], [b]) => b.localeCompare(a)).map(([date, entries]) => <div key={date} className="xp-history-day"><h4>{date}</h4><ul>{entries.sort((a, b) => b.completedAt.localeCompare(a.completedAt) || b.id.localeCompare(a.id)).map(task =>
+      <li key={task.id}><strong>{task.taskName}</strong><time dateTime={task.completedAt}>{new Intl.DateTimeFormat('pl-PL', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Warsaw' }).format(new Date(task.completedAt))}</time>
+        {task.projects?.map((project, index) => <span key={`${index}:${project}`} className="xp-history-meta">{project}</span>)}
+        {task.observedEffort && <span className="xp-history-meta">{task.observedEffort}</span>}</li>)}</ul></div>)}
+  </div>;
+}

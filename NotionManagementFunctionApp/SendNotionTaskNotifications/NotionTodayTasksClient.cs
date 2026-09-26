@@ -89,7 +89,7 @@ public sealed class NotionTodayTasksClient
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
         EnsureSuccess(response, body, "update task status");
-        return ParseTaskSnapshot(body);
+        return await ParseTaskSnapshotAsync(body, cancellationToken);
     }
 
     public async Task<NotionTaskSnapshot> GetTaskSnapshotAsync(string id, CancellationToken cancellationToken)
@@ -100,7 +100,7 @@ public sealed class NotionTodayTasksClient
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound) throw new KeyNotFoundException("Task was not found.");
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
         EnsureSuccess(response, body, "retrieve task");
-        var snapshot = ParseTaskSnapshot(body);
+        var snapshot = await ParseTaskSnapshotAsync(body, cancellationToken);
         if (!string.Equals(snapshot.PageId, id, StringComparison.Ordinal) || !IsTaskDataSource(body))
             throw new KeyNotFoundException("Task was not found.");
         return snapshot;
@@ -331,7 +331,7 @@ public sealed class NotionTodayTasksClient
         return GetString(parent, "type") == "data_source_id" && GetString(parent, "data_source_id") == _dataSourceId;
     }
 
-    private static NotionTaskSnapshot ParseTaskSnapshot(string body)
+    private async Task<NotionTaskSnapshot> ParseTaskSnapshotAsync(string body, CancellationToken cancellationToken)
     {
         using var document = JsonDocument.Parse(body);
         var root = document.RootElement;
@@ -341,7 +341,7 @@ public sealed class NotionTodayTasksClient
         var effort = ReadSelect(root, "Effort");
         var lastEdited = GetString(root, "last_edited_time");
         if (!DateTimeOffset.TryParse(lastEdited, out var lastEditedAt)) lastEditedAt = DateTimeOffset.UtcNow;
-        return new NotionTaskSnapshot(pageId, name, ReadStatus(root, StatusPropertyName), effort, lastEditedAt);
+        return new NotionTaskSnapshot(pageId, name, ReadStatus(root, StatusPropertyName), effort, lastEditedAt, await GetProjectsAsync(root, new Dictionary<string, string>(), cancellationToken));
     }
 
     private void EnsureTaskDataSourceConfigured()

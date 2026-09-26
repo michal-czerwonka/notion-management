@@ -10,7 +10,7 @@ using NotionManagementFunctionApp.SendNotionTaskNotifications;
 
 namespace NotionManagementFunctionApp.TaskXp;
 
-public sealed class TaskXpFunctions(TaskXpService taskXp, NotionTodayTasksClient notion, IOptions<TaskXpOptions> options)
+public sealed class TaskXpFunctions(TaskXpService taskXp, CompletedTaskBackfill backfill, NotionTodayTasksClient notion, IOptions<TaskXpOptions> options)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -52,6 +52,17 @@ public sealed class TaskXpFunctions(TaskXpService taskXp, NotionTodayTasksClient
         if (!taskXp.IsEligible(period)) return request.CreateResponse(HttpStatusCode.NotFound);
         try { return await JsonAsync(request, HttpStatusCode.OK, await taskXp.GetProgressAsync(period, cancellationToken), cancellationToken); }
         catch (CosmosException) { return await JsonAsync(request, HttpStatusCode.ServiceUnavailable, new { error = "Task progress is temporarily unavailable." }, cancellationToken); }
+    }
+
+    [Function("BackfillCompletedTaskHistory")]
+    public async Task<HttpResponseData> BackfillAsync([HttpTrigger(AuthorizationLevel.Function, "post", Route = "task-xp/{segment}/completed-task-backfill")] HttpRequestData request, string segment, CancellationToken cancellationToken)
+    {
+        if (!Authorize(segment)) return request.CreateResponse(HttpStatusCode.NotFound);
+        var values = ParseQuery(request.Url.Query);
+        if (values.GetValueOrDefault("mode") is not ("dry-run" or "apply"))
+            return await JsonAsync(request, HttpStatusCode.BadRequest, new { error = "mode must be dry-run or apply." }, cancellationToken);
+        try { return await JsonAsync(request, HttpStatusCode.OK, await backfill.RunAsync(values["mode"] == "apply", cancellationToken), cancellationToken); }
+        catch (CosmosException) { return await JsonAsync(request, HttpStatusCode.ServiceUnavailable, new { error = "Completion backfill is temporarily unavailable." }, cancellationToken); }
     }
 
     [Function("ReceiveNotionTaskXpWebhook")]

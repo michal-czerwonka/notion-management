@@ -20,6 +20,7 @@ public sealed class RoutineOccurrenceDocument
     [JsonProperty("version")] public int Version { get; init; }
     [JsonProperty("activeAwardEffort")] public string? ActiveAwardEffort { get; init; }
     [JsonProperty("activeAwardXp")] public int? ActiveAwardXp { get; init; }
+    [JsonProperty("activeCompletionId")] public string? ActiveCompletionId { get; init; }
     [JsonProperty("updatedAt")] public DateTimeOffset UpdatedAt { get; init; }
     [JsonProperty("_etag")] public string? ETag { get; init; }
 }

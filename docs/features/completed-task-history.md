@@ -2,7 +2,7 @@
 
 ## Status
 
-Technical design complete; ready for implementation
+Implementation complete in code; historical backfill and manual acceptance pending
 
 ## Goal
 
@@ -173,7 +173,20 @@ Approved implementation sequence:
 
 ## Implementation notes
 
+- Added completion-time snapshots to the existing day, week, and month progress documents. Year responses omit `completedTasks`.
+- Regular-task state tracks the active award event ID, business date, and completion time. Same-day reopening removes its snapshot and reverses its XP in the original periods; later-day reopening preserves both. Legacy active state resolves its award from unambiguous event history before reopening.
+- Routine occurrence state tracks its active completion ID, and routine mutations update the three snapshot arrays in the existing transactional batch.
+- The Notion task snapshot now captures all project names returned by the source on both Android status updates and webhook ingestion. Historical backfill leaves unavailable projects null.
+- Added a function-key-protected backfill operation with dry-run and apply modes. It reconstructs unambiguous completions, writes durable markers for XP corrections, and can be rerun after interruption. See `docs/operations/completed-task-history-backfill.md` for rollout and resume instructions.
+- The existing progress response returns structured completion entries; the client displays them in separate routine and regular groups, ordered by business day and completion time.
+- No production Cosmos DB backfill was run in this implementation session. The first release must run and review it before enabling the new client view.
+
 ## Validation performed
+
+- `dotnet build NotionManagementFunctionApp/NotionManagementFunctionApp.csproj --no-restore`: passed with zero warnings and errors.
+- `npm run build` in `NotionManagementApp`: passed. The initial sandboxed build could not write `dist`; rerunning with filesystem permission completed successfully.
+- `git diff --check`: passed.
+- Cosmos DB dry-run, apply, live mutation scenarios, response inspection, and representative item/batch size measurement remain pending in the target environment.
 
 ## Review findings
 

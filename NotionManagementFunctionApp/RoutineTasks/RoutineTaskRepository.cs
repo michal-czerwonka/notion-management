@@ -58,6 +58,10 @@ public sealed class RoutineTaskRepository
             var nextVersion = currentVersion + (stateChanged ? 1 : 0);
             var activeEffort = occurrence?.ActiveAwardEffort;
             var activeXp = occurrence?.ActiveAwardXp;
+            var activeCompletionId = occurrence?.ActiveCompletionId;
+            if (stateChanged && currentState == "completed" && activeCompletionId is null)
+                activeCompletionId = await ResolveLegacyCompletionIdAsync(definition.Id, businessDateText, cancellationToken);
+            var previousCompletionId = activeCompletionId;
             var xpAmount = 0;
             if (stateChanged && string.Equals(currentState, "completed", StringComparison.Ordinal))
             {
@@ -65,19 +69,21 @@ public sealed class RoutineTaskRepository
                 xpAmount -= activeXp.Value;
                 activeXp = null;
                 activeEffort = null;
+                activeCompletionId = null;
             }
             if (stateChanged && string.Equals(request.State, "completed", StringComparison.Ordinal))
             {
                 xpAmount += configuredXp;
                 activeXp = configuredXp;
                 activeEffort = definition.Effort;
+                activeCompletionId = "xp-event:" + Guid.NewGuid().ToString("N");
             }
 
             var resultItem = Item(definition, configuredXp, request.State, nextVersion);
             var nextOccurrence = new RoutineOccurrenceDocument
             {
                 Id = OccurrenceId(businessDate, definition.Id), RoutineId = definition.Id, BusinessDate = businessDateText,
-                State = request.State, Version = nextVersion, ActiveAwardEffort = activeEffort, ActiveAwardXp = activeXp,
+                State = request.State, Version = nextVersion, ActiveAwardEffort = activeEffort, ActiveAwardXp = activeXp, ActiveCompletionId = activeCompletionId,
                 UpdatedAt = stateChanged ? acceptedAt : occurrence?.UpdatedAt ?? acceptedAt, ETag = occurrence?.ETag
             };
             var operation = new RoutineOperationDocument
@@ -96,7 +102,7 @@ public sealed class RoutineTaskRepository
                 var eventEffort = xpAmount > 0 ? definition.Effort : occurrence!.ActiveAwardEffort!;
                 xpEvent = new XpEventDocument
                 {
-                    Id = "xp-event:" + Guid.NewGuid().ToString("N"), TaskId = definition.Id, TaskName = definition.Name,
+                    Id = activeCompletionId ?? "xp-event:" + Guid.NewGuid().ToString("N"), TaskId = definition.Id, TaskName = definition.Name,
                     SubjectType = "routine", ChangeType = xpAmount > 0 ? "award" : "revoke", XpAmount = xpAmount,
                     ObservedEffort = definition.Effort, Effort = eventEffort, Source = "routine-api", OccurredAt = acceptedAt, RecordedAt = acceptedAt
                 };
@@ -123,11 +129,18 @@ public sealed class RoutineTaskRepository
                 foreach (var item in progress)
                 {
                     var existing = item.Document;
+                    var completedTasks = item.Period.Period == "year" ? null : (existing?.CompletedTasks ?? []).ToList();
+                    if (completedTasks is not null && xpAmount > 0)
+                        completedTasks.Add(new CompletedTaskSnapshot(xpEvent.Id, "routine", definition.Id, definition.Name, acceptedAt, businessDateText, definition.Effort, null));
+                    if (completedTasks is not null && xpAmount < 0)
+                    {
+                        completedTasks.RemoveAll(snapshot => snapshot.Id == previousCompletionId);
+                    }
                     var next = new XpProgressDocument
                     {
                         Id = item.Period.Id, Period = item.Period.Period, PeriodStart = item.Period.Start.ToString("yyyy-MM-dd"),
                         PeriodEndExclusive = item.Period.EndExclusive.ToString("yyyy-MM-dd"), SignedXp = (existing?.SignedXp ?? 0) + xpAmount,
-                        TargetXp = existing?.TargetXp ?? _targets.TargetFor(item.Period), ETag = existing?.ETag
+                        TargetXp = existing?.TargetXp ?? _targets.TargetFor(item.Period), CompletedTasks = completedTasks, ETag = existing?.ETag
                     };
                     if (existing is null) batch.CreateItem(next); else batch.ReplaceItem(next.Id, next, new TransactionalBatchItemRequestOptions { IfMatchEtag = existing.ETag });
                 }
@@ -153,6 +166,21 @@ public sealed class RoutineTaskRepository
         string.Equals(operation.RoutineId, routineId, StringComparison.Ordinal) &&
         string.Equals(operation.ExpectedBusinessDate, request.ExpectedBusinessDate, StringComparison.Ordinal) &&
         operation.ExpectedVersion == request.ExpectedVersion && string.Equals(operation.TargetState, request.State, StringComparison.Ordinal);
+
+    private async Task<string> ResolveLegacyCompletionIdAsync(string routineId, string businessDate, CancellationToken cancellationToken)
+    {
+        var query = new QueryDefinition("SELECT * FROM c WHERE c.profileId = @profileId AND c.type = 'xp-event' AND c.subjectType = 'routine' AND c.taskId = @routineId ORDER BY c.occurredAt DESC")
+            .WithParameter("@profileId", TaskXpRepository.ProfileId).WithParameter("@routineId", routineId);
+        using var iterator = _container.GetItemQueryIterator<XpEventDocument>(query, requestOptions: new QueryRequestOptions { PartitionKey = new PartitionKey(TaskXpRepository.ProfileId), MaxItemCount = 100 });
+        var events = new List<XpEventDocument>();
+        while (iterator.HasMoreResults)
+            events.AddRange(await iterator.ReadNextAsync(cancellationToken));
+        var daily = events.Where(item => _periods.BusinessDate(item.OccurredAt).ToString("yyyy-MM-dd") == businessDate).ToArray();
+        var latest = daily.OrderByDescending(item => item.OccurredAt).ThenByDescending(item => item.RecordedAt).FirstOrDefault();
+        if (latest is null || latest.ChangeType != "award" || daily.Count(item => item.ChangeType == "award" && item.OccurredAt == latest.OccurredAt) != 1)
+            throw new InvalidOperationException($"Cannot resolve active routine completion for {routineId} on {businessDate}.");
+        return latest.Id;
+    }
 
     private static RoutineTaskItem Item(RoutineTaskDefinition definition, int xp, string state, int version) => new(definition.Id, definition.Name, definition.Effort, xp, state, version);
     private static string OccurrenceId(DateOnly date, string routineId) => $"routine-occurrence:{date:yyyy-MM-dd}:{routineId}";

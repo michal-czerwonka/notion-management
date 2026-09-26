@@ -132,3 +132,9 @@ h3 { font-size: 18px; font-weight: 500; color: #403648; margin-bottom: 8px; }
   .skip-button { align-self: flex-start; }
   .page-header { gap: 12px; }
 }
+.xp-history { margin-top: 1.5rem; }
+.xp-history-group { margin-top: 1rem; }
+.xp-history-day { margin-top: 1rem; }
+.xp-history-day ul { list-style: none; margin: .5rem 0; padding: 0; }
+.xp-history-day li { display: flex; flex-direction: column; padding: .75rem 0; border-bottom: 1px solid var(--border-color, #ddd); }
+.xp-history-day time, .xp-history-meta { color: #777; font-size: .875rem; }

@@ -12,6 +12,9 @@ public sealed class TaskStateDocument
     [JsonProperty("latestOccurredAt")] public DateTimeOffset LatestOccurredAt { get; init; }
     [JsonProperty("completionCycle")] public int CompletionCycle { get; init; }
     [JsonProperty("activeAwardXp")] public int? ActiveAwardXp { get; init; }
+    [JsonProperty("activeCompletionId")] public string? ActiveCompletionId { get; init; }
+    [JsonProperty("activeCompletionBusinessDate")] public string? ActiveCompletionBusinessDate { get; init; }
+    [JsonProperty("activeCompletionAt")] public DateTimeOffset? ActiveCompletionAt { get; init; }
     [JsonProperty("_etag")] public string? ETag { get; init; }
 }
 
@@ -34,8 +37,19 @@ public sealed class XpProgressDocument
     [JsonProperty("periodEndExclusive")] public string PeriodEndExclusive { get; init; } = "";
     [JsonProperty("signedXp")] public int SignedXp { get; init; }
     [JsonProperty("targetXp")] public int TargetXp { get; init; }
+    [JsonProperty("completedTasks", NullValueHandling = NullValueHandling.Ignore)] public IReadOnlyList<CompletedTaskSnapshot>? CompletedTasks { get; init; }
     [JsonProperty("_etag")] public string? ETag { get; init; }
 }
+
+public sealed record CompletedTaskSnapshot(
+    [property: JsonProperty("id")] string Id,
+    [property: JsonProperty("subjectType")] string SubjectType,
+    [property: JsonProperty("subjectId")] string SubjectId,
+    [property: JsonProperty("taskName")] string TaskName,
+    [property: JsonProperty("completedAt")] DateTimeOffset CompletedAt,
+    [property: JsonProperty("businessDate")] string BusinessDate,
+    [property: JsonProperty("observedEffort")] string? ObservedEffort,
+    [property: JsonProperty("projects")] IReadOnlyList<string>? Projects);
 
 public sealed class XpEventDocument
 {
@@ -67,4 +81,5 @@ public sealed class DeliveryReceiptDocument
 }
 public sealed record XpHistoryItem(string TaskName, string SubjectType, string ChangeType, int XpAmount, string Effort, DateTimeOffset OccurredAt, string Source);
 public sealed record XpHistoryPage(IReadOnlyList<XpHistoryItem> Events, string? ContinuationToken);
-public sealed record XpProgressResult(string Period, string PeriodStart, string PeriodEndExclusive, int EarnedXp, int TargetXp, string? PreviousPeriodStart);
+public sealed record XpProgressResult(string Period, string PeriodStart, string PeriodEndExclusive, int EarnedXp, int TargetXp, string? PreviousPeriodStart,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<CompletedTaskSnapshot>? CompletedTasks);
