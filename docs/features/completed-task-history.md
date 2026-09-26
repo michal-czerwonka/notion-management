@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation complete in code; historical backfill and manual acceptance pending
+Review fixes implemented; historical backfill and manual acceptance remain pending.
 
 ## Goal
 
@@ -180,17 +180,37 @@ Approved implementation sequence:
 - Added a function-key-protected backfill operation with dry-run and apply modes. It reconstructs unambiguous completions, writes durable markers for XP corrections, and can be rerun after interruption. See `docs/operations/completed-task-history-backfill.md` for rollout and resume instructions.
 - The existing progress response returns structured completion entries; the client displays them in separate routine and regular groups, ordered by business day and completion time.
 - No production Cosmos DB backfill was run in this implementation session. The first release must run and review it before enabling the new client view.
+- Follow-up review fix: backfill now rereads award/revoke history for each candidate and guards snapshot writes with a conditional ETag update of task state or routine occurrence in the same transactional batch. A conflicting live correction causes a retry. Final reconciliation checks current acceptance across day, week, and month.
 
 ## Validation performed
 
 - `dotnet build NotionManagementFunctionApp/NotionManagementFunctionApp.csproj --no-restore`: passed with zero warnings and errors.
 - `npm run build` in `NotionManagementApp`: passed. The initial sandboxed build could not write `dist`; rerunning with filesystem permission completed successfully.
 - `git diff --check`: passed.
+- Follow-up concurrency fix: Function App build passed with zero warnings and errors; the new migration path has not been exercised against Cosmos DB.
 - Cosmos DB dry-run, apply, live mutation scenarios, response inspection, and representative item/batch size measurement remain pending in the target environment.
 
 ## Review findings
 
+Review date: 2026-09-26. Comparison base: `main...HEAD` (`bb10617...5c53433`). The local `main` branch exists and matches the local `origin/main` tracking ref; no fetch was performed, so the remote branch may have advanced.
+
+- **Blocking — A concurrent same-day correction can be undone by backfill.** `CompletedTaskBackfill.RunAsync` reads the event history once and builds its candidate snapshot list before writing (`CompletedTaskBackfill.cs:28-29, 89-116`). If a task is reopened on that same business day after the read and before its candidate is written, the live mutation removes the snapshot, but backfill can insert it again. The final check verifies only that the stale candidate exists (`CompletedTaskBackfill.cs:126-131`). This leaves a completed entry without its XP and violates the correction rule. Coordinate migration with writes or revalidate each candidate against current event/state history immediately before committing it; reconcile all affected periods before marking completion.
+- **Important — The maintenance operation is not bounded or resumable when the history scan exceeds one HTTP request.** Both queries append every page to in-memory lists before candidate processing starts (`CompletedTaskBackfill.cs:28-29, 223-234`). A timeout during that scan leaves no checkpoint, so repeating `apply` starts the same full scan and can time out again. The operational instructions acknowledge a possible HTTP timeout but describe rerunning as sufficient. Use a checkpointed, paged maintenance job or another execution path that can resume the scan, and document the verified resume procedure.
+
+Follow-up resolution (2026-09-26): The blocking concurrency finding has been addressed by current-history revalidation and a conditional state/occurrence ETag write in the same batch as all affected progress documents. The final pass reconciles all three snapshot periods against current history. The memory and scan-duration finding is accepted for the expected migration of a few dozen documents; no checkpointed scanner is planned. A repeated `apply` remains idempotent after a completed or interrupted short run.
+
+Known limitations: No production Cosmos DB dry-run or apply has been performed. Live mutation scenarios, JSON response inspection, manual acceptance, and representative Cosmos item and transactional batch size measurements remain unverified. The feature is not ready for acceptance until those checks are complete.
+
 ## Manual acceptance checklist
+
+- [ ] Run the backfill dry-run against representative legacy regular and routine events. Review accepted, ambiguous, and skipped cases; confirm missing legacy projects remain absent and XP adjustments match unambiguous later-day revocations.
+- [ ] Apply the backfill and rerun `apply` to confirm no duplicate snapshots or XP adjustments. Check that every accepted completion appears exactly once in its day, week, and month documents and that adjusted XP totals reconcile. Verify that a same-day reopening during migration cannot restore an invalid snapshot.
+- [ ] Complete a regular task and a routine task. Verify separate groups below XP progress, completion-time names, timestamps, stable IDs in JSON, observed effort only, every captured project on a separate line, and no per-entry XP.
+- [ ] Reopen and recomplete a regular task on the same business day. Verify that the earlier snapshot and XP disappear and only the final accepted completion remains.
+- [ ] Reopen and recomplete a regular task on a later business day. Verify that both accepted completions and their XP remain in the applicable day, week, month, and year totals; verify repeated routine completions appear on separate business days.
+- [ ] Check duplicate and delayed deliveries around the 03:00 Europe/Warsaw boundary and week/month boundaries. Confirm period attribution, newest-first grouping, and no duplicate entries.
+- [ ] Navigate empty and long day, week, and month periods; refresh and simulate an API error. Confirm the year response and screen remain XP-only, and target reconciliation preserves completion arrays.
+- [ ] Measure representative month item and transactional batch payload sizes against Cosmos limits before enabling the client view.
 
 ## Open questions
 

@@ -2,6 +2,7 @@ using System.Net;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
+using NotionManagementFunctionApp.RoutineTasks;
 
 namespace NotionManagementFunctionApp.TaskXp;
 
@@ -89,8 +90,30 @@ public sealed class CompletedTaskBackfill
         foreach (var snapshot in snapshots)
         {
             var periods = _periods.ForEvent(snapshot.CompletedAt).Where(period => period.Period != "year").ToArray();
+            var accepted = await IsAcceptedAsync(snapshot, cancellationToken);
+            if (accepted is null)
+            {
+                issues.Add(new BackfillIssue(snapshot.Id, "The award event is missing from current history; no snapshot was inferred."));
+                continue;
+            }
+            if (!accepted.Value)
+            {
+                issues.Add(new BackfillIssue(snapshot.Id, "A same-business-day revoke invalidated this completion."));
+                if (apply) await ReconcileSnapshotAsync(snapshot, periods, cancellationToken);
+                continue;
+            }
             var present = await ReadAsync<XpProgressDocument>(periods[0].Id, cancellationToken);
-            if (present?.CompletedTasks?.Any(item => item.Id == snapshot.Id) == true) { existing++; continue; }
+            if (present?.CompletedTasks?.Any(item => item.Id == snapshot.Id) == true)
+            {
+                if (!apply) existing++;
+                else
+                {
+                    var result = await ReconcileSnapshotAsync(snapshot, periods, cancellationToken);
+                    if (result is null) issues.Add(new BackfillIssue(snapshot.Id, "A same-business-day correction invalidated this completion during backfill."));
+                    else existing++;
+                }
+                continue;
+            }
             long batchBytes = 0;
             foreach (var period in periods)
             {
@@ -113,8 +136,13 @@ public sealed class CompletedTaskBackfill
                 issues.Add(new BackfillIssue(snapshot.Id, "Projected transactional batch exceeds the Cosmos 2 MB limit."));
                 if (apply) throw new InvalidOperationException("Projected transactional batch exceeds the Cosmos 2 MB limit.");
             }
-            if (apply) await AddSnapshotAsync(snapshot, periods, cancellationToken);
-            applied += apply ? 1 : 0;
+            if (apply)
+            {
+                var result = await ReconcileSnapshotAsync(snapshot, periods, cancellationToken);
+                if (result is null) issues.Add(new BackfillIssue(snapshot.Id, "A same-business-day correction invalidated this completion during backfill."));
+                else if (result.Value) applied++;
+                else existing++;
+            }
         }
         var adjustmentsApplied = 0;
         if (apply)
@@ -125,10 +153,8 @@ public sealed class CompletedTaskBackfill
             }
             foreach (var snapshot in snapshots)
             {
-                var day = _periods.For("day", _periods.BusinessDate(snapshot.CompletedAt));
-                var document = await ReadAsync<XpProgressDocument>(day.Id, cancellationToken);
-                if (document?.CompletedTasks?.Any(item => item.Id == snapshot.Id) != true)
-                    throw new InvalidOperationException($"Backfill reconciliation found missing snapshot {snapshot.Id}.");
+                var periods = _periods.ForEvent(snapshot.CompletedAt).Where(period => period.Period != "year").ToArray();
+                await ReconcileSnapshotAsync(snapshot, periods, cancellationToken);
             }
             foreach (var correction in corrections)
                 if (!await HasAdjustmentAsync(correction.Revoke.Id, cancellationToken))
@@ -150,16 +176,67 @@ public sealed class CompletedTaskBackfill
         !transitions.Any(item => item.RoutineId == award.TaskId && item.BusinessDate == _periods.BusinessDate(award.OccurredAt).ToString("yyyy-MM-dd")) ||
         transitions.Any(item => item.RoutineId == award.TaskId && item.AcceptedAt == award.OccurredAt && item.XpAmount == award.XpAmount);
 
-    private async Task AddSnapshotAsync(CompletedTaskSnapshot snapshot, IReadOnlyList<BusinessPeriod> periods, CancellationToken cancellationToken)
+    private async Task<bool?> IsAcceptedAsync(CompletedTaskSnapshot snapshot, CancellationToken cancellationToken)
+    {
+        var query = new QueryDefinition("SELECT * FROM c WHERE c.profileId = @profileId AND c.type = 'xp-event' AND c.taskId = @subjectId")
+            .WithParameter("@profileId", TaskXpRepository.ProfileId).WithParameter("@subjectId", snapshot.SubjectId);
+        using var iterator = _container.GetItemQueryIterator<XpEventDocument>(query,
+            requestOptions: new QueryRequestOptions { PartitionKey = new PartitionKey(TaskXpRepository.ProfileId), MaxItemCount = 100 });
+        var events = new List<XpEventDocument>();
+        while (iterator.HasMoreResults)
+        {
+            foreach (var item in await iterator.ReadNextAsync(cancellationToken))
+            {
+                var subjectType = string.IsNullOrWhiteSpace(item.SubjectType) ? "task" : item.SubjectType;
+                if (subjectType == snapshot.SubjectType) events.Add(item);
+            }
+        }
+        var ordered = events.OrderBy(item => item.OccurredAt).ThenBy(item => item.RecordedAt)
+            .ThenBy(item => item.Id, StringComparer.Ordinal).ToArray();
+        var index = Array.FindIndex(ordered, item => item.Id == snapshot.Id && item.ChangeType == "award");
+        if (index < 0) return null;
+        for (var next = index + 1; next < ordered.Length; next++)
+        {
+            if (ordered[next].ChangeType == "award") break;
+            if (ordered[next].ChangeType == "revoke")
+                return _periods.BusinessDate(ordered[next].OccurredAt) != _periods.BusinessDate(snapshot.CompletedAt);
+        }
+        return true;
+    }
+
+    private async Task<CompletionGuard> ReadGuardAsync(CompletedTaskSnapshot snapshot, CancellationToken cancellationToken)
+    {
+        if (snapshot.SubjectType == "routine")
+        {
+            var occurrenceId = $"routine-occurrence:{snapshot.BusinessDate}:{snapshot.SubjectId}";
+            var occurrence = await ReadAsync<RoutineOccurrenceDocument>(occurrenceId, cancellationToken)
+                ?? throw new InvalidOperationException($"Routine occurrence {occurrenceId} is missing during backfill.");
+            return new CompletionGuard(null, occurrence);
+        }
+        var stateId = "task-state:" + snapshot.SubjectId;
+        var state = await ReadAsync<TaskStateDocument>(stateId, cancellationToken)
+            ?? throw new InvalidOperationException($"Task state {stateId} is missing during backfill.");
+        return new CompletionGuard(state, null);
+    }
+
+    private async Task<bool?> ReconcileSnapshotAsync(CompletedTaskSnapshot snapshot, IReadOnlyList<BusinessPeriod> periods, CancellationToken cancellationToken)
     {
         for (var attempt = 0; attempt < 8; attempt++)
         {
+            // Read the state before history so its ETag also guards corrections arriving during validation.
+            var guard = await ReadGuardAsync(snapshot, cancellationToken);
+            var accepted = await IsAcceptedAsync(snapshot, cancellationToken);
+            if (accepted is null) throw new InvalidOperationException($"Award event {snapshot.Id} disappeared during backfill.");
             var documents = new List<(BusinessPeriod Period, XpProgressDocument? Existing, XpProgressDocument Next)>();
+            var added = false;
             foreach (var period in periods)
             {
                 var existing = await ReadAsync<XpProgressDocument>(period.Id, cancellationToken);
                 var items = (existing?.CompletedTasks ?? []).ToList();
-                if (!items.Any(item => item.Id == snapshot.Id)) items.Add(snapshot);
+                var present = items.Any(item => item.Id == snapshot.Id);
+                if (accepted.Value && !present) { items.Add(snapshot); added = true; }
+                if (!accepted.Value && present) items.RemoveAll(item => item.Id == snapshot.Id);
+                if (accepted.Value == present) continue;
                 var next = new XpProgressDocument { Id = period.Id, Period = period.Period,
                     PeriodStart = period.Start.ToString("yyyy-MM-dd"), PeriodEndExclusive = period.EndExclusive.ToString("yyyy-MM-dd"),
                     SignedXp = existing?.SignedXp ?? 0, TargetXp = existing?.TargetXp ?? _targets.TargetFor(period), CompletedTasks = items };
@@ -167,19 +244,26 @@ public sealed class CompletedTaskBackfill
                     throw new InvalidOperationException($"Backfill would exceed Cosmos item size for {period.Id}.");
                 documents.Add((period, existing, next));
             }
+            if (documents.Count == 0) return accepted.Value ? false : null;
             var batch = _container.CreateTransactionalBatch(new PartitionKey(TaskXpRepository.ProfileId));
+            if (guard.Task is not null)
+                batch.ReplaceItem(guard.Task.Id, guard.Task, new TransactionalBatchItemRequestOptions { IfMatchEtag = guard.Task.ETag });
+            else if (guard.Routine is not null)
+                batch.ReplaceItem(guard.Routine.Id, guard.Routine, new TransactionalBatchItemRequestOptions { IfMatchEtag = guard.Routine.ETag });
             foreach (var item in documents)
             {
                 if (item.Existing is null) batch.CreateItem(item.Next);
                 else batch.ReplaceItem(item.Period.Id, item.Next, new TransactionalBatchItemRequestOptions { IfMatchEtag = item.Existing.ETag });
             }
             using var response = await batch.ExecuteAsync(cancellationToken);
-            if (response.IsSuccessStatusCode) return;
+            if (response.IsSuccessStatusCode) return accepted.Value ? added : null;
             if (response.StatusCode is HttpStatusCode.Conflict or HttpStatusCode.PreconditionFailed) continue;
             throw new CosmosException("Completion backfill failed.", response.StatusCode, 0, response.ActivityId, response.RequestCharge);
         }
         throw new InvalidOperationException($"Completion backfill repeatedly conflicted for {snapshot.Id}.");
     }
+
+    private sealed record CompletionGuard(TaskStateDocument? Task, RoutineOccurrenceDocument? Routine);
 
     private async Task<bool> AdjustXpAsync(XpEventDocument revoke, int amount, CancellationToken cancellationToken)
     {
