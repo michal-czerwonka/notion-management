@@ -1,11 +1,14 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { archiveTodayTask, getTodayTasks, updateTodayTaskStatus, type TodayTask, type TodayTaskStatus } from '../api/todayTasks';
+import { CacheHeader } from '../cache/CacheHeader';
+import { correctToday, invalidateXp, useCachedResource } from '../cache/screenCache';
 
 type MenuPlacement = 'above' | 'below';
 
-export function TodayTasksPage() {
-  const [tasks, setTasks] = useState<TodayTask[]>([]);
-  const [statuses, setStatuses] = useState<TodayTaskStatus[]>([]);
+export function TodayTasksPage({ day, revisit }: { day: string; revisit: number }) {
+  const cache = useCachedResource('today', day, getTodayTasks, revisit);
+  const tasks: TodayTask[] = cache.data?.tasks ?? [];
+  const statuses: TodayTaskStatus[] = cache.data?.statuses ?? [];
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [menu, setMenu] = useState<string | null>(null);
@@ -13,19 +16,6 @@ export function TodayTasksPage() {
   const [menuMaxHeight, setMenuMaxHeight] = useState<number | null>(null);
   const [archiveId, setArchiveId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  async function load() {
-    setError('');
-    try {
-      const result = await getTodayTasks();
-      setTasks(result.tasks);
-      setStatuses(result.statuses);
-    } catch (exception) {
-      setError(exception instanceof Error ? exception.message : 'Unable to load tasks.');
-    }
-  }
-
-  useEffect(() => { void load(); }, []);
 
   useLayoutEffect(() => {
     if (!menu) return;
@@ -90,7 +80,9 @@ export function TodayTasksPage() {
     setMenu(null);
     try {
       await updateTodayTaskStatus(task.id, status);
-      setTasks(items => items.map(item => item.id === task.id ? { ...item, status } : item));
+      correctToday({ kind: 'today-status', id: task.id, status }, day);
+      invalidateXp(day);
+      void cache.refresh();
     } catch (exception) {
       setError(exception instanceof Error ? exception.message : 'Unable to update task.');
     } finally {
@@ -103,7 +95,9 @@ export function TodayTasksPage() {
     setBusy(archiveId);
     try {
       await archiveTodayTask(archiveId);
-      setTasks(items => items.filter(item => item.id !== archiveId));
+      correctToday({ kind: 'today-remove', id: archiveId }, day);
+      invalidateXp(day);
+      void cache.refresh();
       setArchiveId(null);
     } catch (exception) {
       setError(exception instanceof Error ? exception.message : 'Unable to archive task.');
@@ -118,13 +112,14 @@ export function TodayTasksPage() {
         <span className="app-mark" aria-hidden="true">✓</span>
         <div><h1>Today's tasks</h1><p>A quick view of what is planned for today.</p></div>
       </header>
+      <CacheHeader fetchedAt={cache.fetchedAt} loading={cache.loading} error={cache.error} refresh={() => void cache.refresh()} />
       <section className="today-list">
         <div className="section-heading">
           <h2>Tasks <span className="count">{tasks.length}</span></h2>
-          <button className="text-button" onClick={() => void load()}>Refresh</button>
         </div>
         {error && <p className="error">{error}</p>}
-        {tasks.length === 0 && !error ? <div className="empty-state"><span>✓</span><h3>Nothing planned</h3><p>Your Notion today view is empty.</p></div> : (
+        {cache.loading && !cache.data && <p className="state" role="status">Ładowanie zadań na dzisiaj…</p>}
+        {cache.data && tasks.length === 0 ? <div className="empty-state"><span>✓</span><h3>Nothing planned</h3><p>Your Notion today view is empty.</p></div> : tasks.length > 0 ? (
           <ul>{tasks.map(task => (
             <li className="today-item" key={task.id}>
               <div className="today-details"><strong>{task.name}</strong><small>{task.projects.length ? task.projects.join(', ') : 'No project'} · {task.effort?.trim() || 'Brak effortu'}</small></div>
@@ -139,7 +134,7 @@ export function TodayTasksPage() {
               </div>}
             </li>
           ))}</ul>
-        )}
+        ) : null}
       </section>
       {archiveId && <div className="confirm-backdrop" role="presentation"><section className="confirm-dialog" role="dialog" aria-modal="true" aria-label="Confirm archive"><h2>Archive task?</h2><p>The task will be moved to the Notion trash.</p><div><button className="delete-button" onClick={() => void archive()}>Archive</button><button className="text-button" onClick={() => setArchiveId(null)}>Cancel</button></div></section></div>}
     </>

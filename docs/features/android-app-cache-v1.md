@@ -2,7 +2,7 @@
 
 ## Status
 
-Business discovery and technical design complete; implementation not started
+Implemented; Android manual acceptance pending
 
 ## Goal
 
@@ -158,9 +158,18 @@ During implementation, run `npm run build` in `NotionManagementApp`. Manually ve
 
 ## Implementation notes
 
+- Added a shared, versioned IndexedDB cache with an in-memory mirror, per-key request attempts, deduplication, invalidation, and response generation checks. IndexedDB failures fall back to fresh API requests.
+- All four Android screens use the shared cache header and Warsaw business-day lifecycle. The visible screen resets after 03:00 or app resume; XP selection is restored only within its saved business day.
+- Confirmed Inbox and Today changes remain visible during refreshes through per-entry corrections; routine occurrences retain the higher server version. A successful mutation invalidates affected data and refreshes the visible screen.
+- Added the approved `@capacitor/app` v8 plugin and synced the Android project. The existing backend endpoints and response contracts were unchanged.
+- No material deviations from the approved design. Device-level manual verification remains to be performed.
 
 ## Validation performed
 
+- `npm run build` passed, including the existing routine validation script, TypeScript, and Vite production build.
+- `npx cap sync android` passed and registered `@capacitor/app@8.1.1`.
+- `git diff --check` passed; the implementation diff was inspected for request ordering, day boundaries, persistence, mutation reconciliation, and UI state.
+- Android network and 03:00 acceptance scenarios were not run in this environment because `adb` is unavailable.
 
 ## Review findings
 
