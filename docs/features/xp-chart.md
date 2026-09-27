@@ -2,7 +2,7 @@
 
 ## Status
 
-Business discovery and technical design complete; implementation not started
+Business discovery, technical design, and implementation complete; manual acceptance pending
 
 ## Goal
 
@@ -116,7 +116,17 @@ Implementation sequence:
 
 ## Implementation notes
 
+- Added the authenticated-by-route chart read under the existing Task XP segment. It reads bounded day aggregates, reports query charges, rejects malformed aggregates, fills missing dates only after a successful read, and applies the same non-negative display rule as XP Progress.
+- Added `TaskXp:ChartMaxXp` to versioned development configuration, deployment app settings, and the local settings example. The Android API receives the configured maximum with each chart response and clips only bar height.
+- Added independent 14-, 30-, and 90-day cached views, response and persisted-cache validation, XP invalidation, manual refresh, and retained successful data on refresh errors. The navigation now has the agreed two rows.
+- No data migration or new dependency was required. The existing progress endpoint remains unchanged.
+
 ## Validation performed
+
+- `dotnet build NotionManagement.sln` passed with 0 warnings and 0 errors.
+- `npm run build -- --mode development-phone --outDir <writable build directory>` passed, including the existing routine validation, TypeScript check, and Vite bundle. The standard `dist` path was inaccessible in this sandbox, so the same build ran with an alternate output directory.
+- `git diff --check` passed. Reviewed the full change set against the confirmed requirements and implementation plan.
+- Live Cosmos/API comparisons, daylight-saving boundary requests, and on-device visual/manual acceptance checks have not been run in this environment.
 
 ## Review findings
 

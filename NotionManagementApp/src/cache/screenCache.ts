@@ -3,6 +3,7 @@ import type { InboxItem } from '../api/inbox';
 import type { RoutineTask, RoutineTaskList } from '../api/routineTasks';
 import type { TodayTask } from '../api/todayTasks';
 import type { XpPeriod } from '../api/xpProgress';
+import { validXpChart, type XpChartRange } from '../api/xpChart';
 import { businessDate, periodStart } from './businessTime';
 
 type Correction = { kind: 'inbox-upsert'; item: InboxItem } | { kind: 'inbox-remove'; id: string } |
@@ -29,7 +30,8 @@ function isEntry(value: unknown): value is Entry {
     typeof item.invalidated === 'boolean' && (item.fetchedAt === undefined || Number.isFinite(item.fetchedAt)) &&
     (item.attemptedAt === undefined || Number.isFinite(item.attemptedAt)) &&
     (item.error === undefined || typeof item.error === 'string') &&
-    (item.corrections === undefined || Array.isArray(item.corrections) && item.corrections.every(validCorrection)) && validData(item.key, item.data);
+    (item.corrections === undefined || Array.isArray(item.corrections) && item.corrections.every(validCorrection)) && validData(item.key, item.data) &&
+    (!item.key.startsWith('xp-chart:') || item.data === undefined || (item.data as { endDate: string }).endDate === item.businessDate);
 }
 
 function validCorrection(value: unknown) {
@@ -48,6 +50,10 @@ function validData(key: string, data: unknown) {
   const value = data as Record<string, unknown>;
   if (key === 'today') return Array.isArray(value.tasks) && value.tasks.every(item => item && typeof item.id === 'string' && typeof item.status === 'string' && typeof item.name === 'string' && Array.isArray(item.projects) && item.projects.every((project: unknown) => typeof project === 'string') && (item.effort === null || typeof item.effort === 'string')) && Array.isArray(value.statuses) && value.statuses.every(item => item && typeof item.name === 'string' && typeof item.color === 'string');
   if (key === 'routines') return typeof value.businessDate === 'string' && Array.isArray(value.tasks) && value.tasks.every(item => item && typeof item.id === 'string' && typeof item.name === 'string' && typeof item.effort === 'string' && Number.isInteger(item.xp) && Number.isInteger(item.version) && ['pending', 'completed', 'skipped'].includes(item.state));
+  if (key.startsWith('xp-chart:')) {
+    const range = Number(key.slice('xp-chart:'.length));
+    return (range === 14 || range === 30 || range === 90) && validXpChart(value, range);
+  }
   if (key.startsWith('xp:')) return key === `xp:${value.period}:${value.periodStart}` && typeof value.periodEndExclusive === 'string' && Number.isInteger(value.earnedXp) && Number.isInteger(value.targetXp) && (value.previousPeriodStart === null || typeof value.previousPeriodStart === 'string') && (value.completedTasks === null || Array.isArray(value.completedTasks) && value.completedTasks.every(item => item && typeof item.id === 'string' && typeof item.taskName === 'string' && typeof item.completedAt === 'string' && typeof item.businessDate === 'string' && (item.subjectType === 'task' || item.subjectType === 'routine') && typeof item.subjectId === 'string' && (item.observedEffort === null || typeof item.observedEffort === 'string') && (item.projects === null || Array.isArray(item.projects) && item.projects.every((project: unknown) => typeof project === 'string'))));
   return false;
 }
@@ -277,6 +283,7 @@ export function invalidate(key: string, day = businessDate()) {
 export function invalidateXp(day = businessDate()) {
   if (businessDate() !== day) return;
   for (const key of entries.keys()) {
+    if (key.startsWith('xp-chart:')) { invalidate(key, day); continue; }
     if (!key.startsWith('xp:')) continue;
     const [, period, start] = key.split(':') as [string, XpPeriod, string];
     if (periodStart(period, day) === start) invalidate(key, day);
@@ -284,6 +291,7 @@ export function invalidateXp(day = businessDate()) {
 }
 
 export function xpKey(period: XpPeriod, start: string) { return `xp:${period}:${start}`; }
+export function xpChartKey(range: XpChartRange) { return `xp-chart:${range}`; }
 
 export function correctInbox(correction: Correction, day = businessDate()) {
   changeEntry('inbox', day, entry => {

@@ -7,8 +7,9 @@ import { InboxPage } from './pages/InboxPage';
 import { RoutineTasksPage } from './pages/RoutineTasksPage';
 import { TodayTasksPage } from './pages/TodayTasksPage';
 import { XpProgressPage } from './pages/XpProgressPage';
+import { XpChartPage } from './pages/XpChartPage';
 
-type AppView = 'inbox' | 'routines' | 'today' | 'progress';
+type AppView = 'inbox' | 'routines' | 'today' | 'progress' | 'chart';
 
 interface LauncherRoutePlugin {
   addListener(
@@ -37,12 +38,17 @@ export function App() {
   return (
     <main className="app-shell">
       <nav className="main-navigation" aria-label="Główna nawigacja">
-        <button className={view === 'today' ? 'active' : undefined} type="button" onClick={() => setView('today')}>Dzisiaj</button>
-        <button className={view === 'routines' ? 'active' : undefined} type="button" onClick={() => setView('routines')}>Rutyny</button>
-        <button className={view === 'inbox' ? 'active' : undefined} type="button" onClick={() => setView('inbox')}>Inbox</button>
-        <button className={view === 'progress' ? 'active' : undefined} type="button" onClick={() => setView('progress')}>Postęp XP</button>
+        <div className="main-navigation-row">
+          <button className={view === 'today' ? 'active' : undefined} type="button" onClick={() => setView('today')}>Dzisiaj</button>
+          <button className={view === 'routines' ? 'active' : undefined} type="button" onClick={() => setView('routines')}>Rutyny</button>
+          <button className={view === 'inbox' ? 'active' : undefined} type="button" onClick={() => setView('inbox')}>Inbox</button>
+        </div>
+        <div className="main-navigation-row">
+          <button className={view === 'progress' ? 'active' : undefined} type="button" onClick={() => setView('progress')}>Postęp XP</button>
+          <button className={view === 'chart' ? 'active' : undefined} type="button" onClick={() => setView('chart')}>Diagram XP</button>
+        </div>
       </nav>
-      {view === 'inbox' ? <InboxPage day={day} revisit={revisit} /> : view === 'routines' ? <RoutineTasksPage day={day} revisit={revisit} /> : view === 'progress' ? <XpProgressPage day={day} revisit={revisit} /> : <TodayTasksPage day={day} revisit={revisit} />}
+      {view === 'inbox' ? <InboxPage day={day} revisit={revisit} /> : view === 'routines' ? <RoutineTasksPage day={day} revisit={revisit} /> : view === 'progress' ? <XpProgressPage day={day} revisit={revisit} /> : view === 'chart' ? <XpChartPage day={day} revisit={revisit} /> : <TodayTasksPage day={day} revisit={revisit} />}
     </main>
   );
 }
@@ -52,7 +58,7 @@ function useLauncherRoute(setView: (view: AppView) => void) {
     if (!Capacitor.isNativePlatform()) return;
 
     const listener = launcherRoute.addListener('shortcutOpen', payload => {
-      setView(payload.view === 'routines' ? 'routines' : payload.view === 'today' ? 'today' : payload.view === 'progress' ? 'progress' : 'inbox');
+      setView(payload.view === 'routines' ? 'routines' : payload.view === 'today' ? 'today' : payload.view === 'progress' ? 'progress' : payload.view === 'chart' ? 'chart' : 'inbox');
     });
 
     return () => { void listener.then(handle => handle.remove()); };

@@ -91,6 +91,7 @@ Required settings:
 - `TaskXp:ReadRouteSegment` - long random segment used by the anonymous Task XP read endpoints.
 - `TaskXp:NotionWebhookVerificationToken` - secret used to verify the Notion Task XP webhook HMAC.
 - `TaskXp:DailyTargets:<index>:EffectiveFrom` / `DailyTargetXp` - append-only effective-dated daily XP target history. Dates use `yyyy-MM-dd` business dates and targets are positive whole numbers.
+- `TaskXp:ChartMaxXp` - positive fixed XP scale maximum for the daily chart; initially `300`.
 - `TaskXp:ProgressReconciliationSchedule` - NCRONTAB timer, normally `0 0 3 * * *` in the Function App's Europe/Warsaw timezone.
 - `RoutineTasks:RouteSegment` - a separate long random segment used by the anonymous routine read and mutation endpoints.
 - `RoutineTasks:ConfigurationPath` - routine schedule path; defaults to the shared published `config/routine-tasks.json`.
@@ -110,6 +111,7 @@ The anonymous read API is deliberately obscured, not authenticated:
 - `GET /api/task-xp/<TaskXp:ReadRouteSegment>/total` returns `{ "totalXp": 0 }`.
 - `GET /api/task-xp/<TaskXp:ReadRouteSegment>/events?limit=1..100&continuationToken=<opaque>` returns newest-first logical XP events and an opaque continuation token.
 - `GET /api/task-xp/<TaskXp:ReadRouteSegment>/progress?period=day|week|month|year&periodStart=yyyy-MM-dd` returns the selected period aggregate and an optional previous period. The target schedule must be deployed before 03:00 Europe/Warsaw on its effective date; the daily timer backfills and reconciles target snapshots without changing signed XP.
+- `GET /api/task-xp/<TaskXp:ReadRouteSegment>/chart?days=14|30|90` returns `{ startDate, endDate, chartMaxXp, days: [{ date, earnedXp }] }` for consecutive Europe/Warsaw business days through today. Missing day aggregates display 0 XP; returned XP is not clipped to the chart maximum.
 
 Routine tasks use the repository-level `config/routine-tasks.json` schedule. The backend owns the current Europe/Warsaw business date and persists every accepted transition in Cosmos DB. `GET /api/routine-tasks/<RoutineTasks:RouteSegment>` returns the current schedule and confirmed state. `PUT /api/routine-tasks/<RoutineTasks:RouteSegment>/<routineId>` accepts an operation ID, expected business date, expected version and target state. Completion and reopening update the shared XP totals and period projections atomically with routine state and audit history.
 

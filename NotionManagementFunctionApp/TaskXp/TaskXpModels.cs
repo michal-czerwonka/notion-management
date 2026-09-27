@@ -83,3 +83,10 @@ public sealed record XpHistoryItem(string TaskName, string SubjectType, string C
 public sealed record XpHistoryPage(IReadOnlyList<XpHistoryItem> Events, string? ContinuationToken);
 public sealed record XpProgressResult(string Period, string PeriodStart, string PeriodEndExclusive, int EarnedXp, int TargetXp, string? PreviousPeriodStart,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<CompletedTaskSnapshot>? CompletedTasks);
+public sealed record XpChartDay(string Date, int EarnedXp);
+public sealed record XpChartResult(string StartDate, string EndDate, int ChartMaxXp, IReadOnlyList<XpChartDay> Days);
+public sealed class XpChartDayProjection
+{
+    [JsonProperty("periodStart")] public string? PeriodStart { get; init; }
+    [JsonProperty("signedXp")] public int? SignedXp { get; init; }
+}

@@ -17,6 +17,7 @@ public sealed class TaskXpOptions : IValidatableObject
     [Range(1, int.MaxValue)] public int Hard { get; init; } = 50;
     [Range(1, int.MaxValue)] public int Epic { get; init; } = 100;
     [Required] public string ProgressReconciliationSchedule { get; init; } = "0 0 3 * * *";
+    [Range(1, int.MaxValue)] public int ChartMaxXp { get; init; }
     [MinLength(1)] public IReadOnlyList<DailyTargetOption> DailyTargets { get; init; } = [];
     public IEnumerable<ValidationResult> Validate(ValidationContext context)
     {

@@ -54,6 +54,19 @@ public sealed class TaskXpFunctions(TaskXpService taskXp, CompletedTaskBackfill 
         catch (CosmosException) { return await JsonAsync(request, HttpStatusCode.ServiceUnavailable, new { error = "Task progress is temporarily unavailable." }, cancellationToken); }
     }
 
+    [Function("GetTaskXpChart")]
+    public async Task<HttpResponseData> ChartAsync([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "task-xp/{segment}/chart")] HttpRequestData request, string segment, CancellationToken cancellationToken)
+    {
+        if (!Authorize(segment)) return request.CreateResponse(HttpStatusCode.NotFound);
+        var values = ParseQuery(request.Url.Query);
+        if (!int.TryParse(values.GetValueOrDefault("days"), out var days) || days is not (14 or 30 or 90))
+            return await JsonAsync(request, HttpStatusCode.BadRequest, new { error = "days must be 14, 30, or 90." }, cancellationToken);
+        try { return await JsonAsync(request, HttpStatusCode.OK, await taskXp.GetChartAsync(days, DateTimeOffset.UtcNow, cancellationToken), cancellationToken); }
+        catch (CosmosException) { return await JsonAsync(request, HttpStatusCode.ServiceUnavailable, new { error = "Task progress is temporarily unavailable." }, cancellationToken); }
+        catch (InvalidOperationException) { return await JsonAsync(request, HttpStatusCode.ServiceUnavailable, new { error = "Task progress is temporarily unavailable." }, cancellationToken); }
+        catch (Newtonsoft.Json.JsonException) { return await JsonAsync(request, HttpStatusCode.ServiceUnavailable, new { error = "Task progress is temporarily unavailable." }, cancellationToken); }
+    }
+
     [Function("BackfillCompletedTaskHistory")]
     public async Task<HttpResponseData> BackfillAsync([HttpTrigger(AuthorizationLevel.Function, "post", Route = "task-xp/{segment}/completed-task-backfill")] HttpRequestData request, string segment, CancellationToken cancellationToken)
     {
