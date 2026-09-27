@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { getRoutineTasks, RoutineApiError, updateRoutineTask, type RoutineMutationRequest, type RoutineState, type RoutineTask, type RoutineTaskList } from '../api/routineTasks';
 import { CacheHeader } from '../cache/CacheHeader';
-import { correctRoutine, invalidateXp, useCachedResource } from '../cache/screenCache';
+import { businessDate } from '../cache/businessTime';
+import { correctRoutine, invalidate, invalidateXp, useCachedResource } from '../cache/screenCache';
 
 type FailedOperation = { request: RoutineMutationRequest; message: string };
 export function RoutineTasksPage({ day, revisit }: { day: string; revisit: number }) {
@@ -22,14 +23,13 @@ export function RoutineTasksPage({ day, revisit }: { day: string; revisit: numbe
       const result = await updateRoutineTask(task.id, request);
       correctRoutine(result.occurrence, request.expectedBusinessDate);
       invalidateXp(request.expectedBusinessDate);
-      void cache.refresh();
     } catch (exception) {
       if (exception instanceof RoutineApiError && exception.status === 409) {
         const conflict = exception.conflict;
         if (conflict?.occurrence && conflict.businessDate === request.expectedBusinessDate) {
           correctRoutine(conflict.occurrence, conflict.businessDate);
           setError('Stan zadania został odświeżony po zmianie z innego żądania.');
-        } else void cache.refresh();
+        } else invalidate('routines', businessDate());
       } else {
         setFailed(current => ({ ...current, [task.id]: { request, message: exception instanceof Error ? exception.message : 'Nie udało się zapisać zmiany.' } }));
       }

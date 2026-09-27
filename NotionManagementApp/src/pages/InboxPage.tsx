@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { createInboxItem, deleteInboxItem, getInbox, moveInboxItemToTasks, updateInboxItem, type InboxItem } from '../api/inbox';
 import { CacheHeader } from '../cache/CacheHeader';
+import { businessDate } from '../cache/businessTime';
 import { correctInbox, invalidate, useCachedResource } from '../cache/screenCache';
 
 export function InboxPage({ day, revisit }: { day: string; revisit: number }) {
@@ -37,9 +38,10 @@ export function InboxPage({ day, revisit }: { day: string; revisit: number }) {
     try {
       const item = await createInboxItem(value);
       setName('');
-      correctInbox({ kind: 'inbox-upsert', item }, day);
+      const currentDay = businessDate();
+      if (currentDay === day) correctInbox({ kind: 'inbox-upsert', item }, day);
+      else invalidate('inbox', currentDay);
       setNotice('Dodano do Inbox.');
-      void cache.refresh();
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Nie udało się dodać wpisu.');
     } finally {
@@ -70,10 +72,11 @@ export function InboxPage({ day, revisit }: { day: string; revisit: number }) {
     setEditingError('');
     try {
       const updatedItem = await updateInboxItem(item.id, value);
-      correctInbox({ kind: 'inbox-upsert', item: updatedItem }, day);
+      const currentDay = businessDate();
+      if (currentDay === day) correctInbox({ kind: 'inbox-upsert', item: updatedItem }, day);
+      else invalidate('inbox', currentDay);
       cancelEditing();
       setNotice('Zapisano zmiany.');
-      void cache.refresh();
     } catch (error) {
       setEditingError(error instanceof Error ? error.message : 'Nie udało się zapisać zmian.');
     } finally {
@@ -89,10 +92,11 @@ export function InboxPage({ day, revisit }: { day: string; revisit: number }) {
     setNotice('');
     try {
       await moveInboxItemToTasks(item.id);
-      correctInbox({ kind: 'inbox-remove', id: item.id }, day);
-      invalidate('today', day);
+      const currentDay = businessDate();
+      if (currentDay === day) correctInbox({ kind: 'inbox-remove', id: item.id }, day);
+      else invalidate('inbox', currentDay);
+      invalidate('today', currentDay);
       setNotice('Przeniesiono do Zadań na dzisiaj.');
-      void cache.refresh();
     } catch (error) {
       setMovingError({
         id: item.id,
@@ -111,9 +115,10 @@ export function InboxPage({ day, revisit }: { day: string; revisit: number }) {
     setNotice('');
     try {
       await deleteInboxItem(item.id);
-      correctInbox({ kind: 'inbox-remove', id: item.id }, day);
+      const currentDay = businessDate();
+      if (currentDay === day) correctInbox({ kind: 'inbox-remove', id: item.id }, day);
+      else invalidate('inbox', currentDay);
       setNotice('Usunięto wpis z Inbox.');
-      void cache.refresh();
     } catch (error) {
       setDeletingError({
         id: item.id,

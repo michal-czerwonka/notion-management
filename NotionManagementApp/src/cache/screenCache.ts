@@ -13,6 +13,7 @@ export type XpSelection = { period: XpPeriod; start: string; businessDate: strin
 
 const entries = new Map<string, Entry>();
 const listeners = new Set<() => void>();
+const activeLoads = new Map<string, Set<() => void>>();
 const flights = new Map<string, Promise<void>>();
 const generations = new Map<string, number>();
 let hydration: Promise<void> | undefined;
@@ -174,6 +175,7 @@ function applyCorrections(key: string, incoming: unknown, previous?: Entry): { d
         if (found?.name === correction.item.name) continue;
         items = [correction.item, ...items.filter(item => item.id !== correction.item.id)];
       } else if (correction.kind === 'inbox-remove') {
+        if (!items.some(item => item.id === correction.id)) continue;
         items = items.filter(item => item.id !== correction.id);
       }
       outstanding.push(correction);
@@ -189,6 +191,7 @@ function applyCorrections(key: string, incoming: unknown, previous?: Entry): { d
         if (found?.status === correction.status) continue;
         tasks = tasks.map(task => task.id === correction.id ? { ...task, status: correction.status } : task);
       } else if (correction.kind === 'today-remove') {
+        if (!tasks.some(task => task.id === correction.id)) continue;
         tasks = tasks.filter(task => task.id !== correction.id);
       }
       outstanding.push(correction);
@@ -199,6 +202,7 @@ function applyCorrections(key: string, incoming: unknown, previous?: Entry): { d
 }
 
 export function requestData<T>(key: string, day: string, loader: () => Promise<T>, force = false) {
+  if (businessDate() !== day) return Promise.resolve();
   const flightKey = `${day}:${key}`;
   const existing = flights.get(flightKey);
   if (existing) return existing;
@@ -236,22 +240,34 @@ export function useCachedResource<T>(key: string, day: string, loader: () => Pro
   useEffect(() => {
     let active = true;
     const update = () => { if (active) setState({ key, day, value: view<T>(key, day) }); };
+    const activeKey = `${day}:${key}`;
+    const load = () => { void requestData(key, day, () => loaderRef.current()); };
+    const loads = activeLoads.get(activeKey) ?? new Set<() => void>();
+    loads.add(load);
+    activeLoads.set(activeKey, loads);
     listeners.add(update);
     update();
     void hydrateCache().then(() => { if (active) { update(); void requestData(key, day, () => loaderRef.current()); } });
-    return () => { active = false; listeners.delete(update); };
+    return () => {
+      active = false;
+      listeners.delete(update);
+      loads.delete(load);
+      if (loads.size === 0) activeLoads.delete(activeKey);
+    };
   }, [key, day, revisit]);
   const refresh = useCallback(() => requestData(key, day, () => loaderRef.current(), true), [key, day]);
   return { ...(state.key === key && state.day === day ? state.value : view<T>(key, day)), refresh };
 }
 
 function changeEntry(key: string, day: string, transform: (entry: Entry) => Entry) {
+  if (businessDate() !== day) return;
   const entry = currentEntry(key, day) ?? { key, businessDate: day, invalidated: true };
   const updated = transform(entry);
   entries.set(key, updated);
   generations.set(key, (generations.get(key) ?? 0) + 1);
   flights.delete(`${day}:${key}`);
   notify(); void writeRecord(key, updated);
+  for (const load of activeLoads.get(`${day}:${key}`) ?? []) load();
 }
 
 export function invalidate(key: string, day = businessDate()) {
@@ -259,6 +275,7 @@ export function invalidate(key: string, day = businessDate()) {
 }
 
 export function invalidateXp(day = businessDate()) {
+  if (businessDate() !== day) return;
   for (const key of entries.keys()) {
     if (!key.startsWith('xp:')) continue;
     const [, period, start] = key.split(':') as [string, XpPeriod, string];

@@ -1,7 +1,8 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { archiveTodayTask, getTodayTasks, updateTodayTaskStatus, type TodayTask, type TodayTaskStatus } from '../api/todayTasks';
 import { CacheHeader } from '../cache/CacheHeader';
-import { correctToday, invalidateXp, useCachedResource } from '../cache/screenCache';
+import { businessDate } from '../cache/businessTime';
+import { correctToday, invalidate, invalidateXp, useCachedResource } from '../cache/screenCache';
 
 type MenuPlacement = 'above' | 'below';
 
@@ -80,9 +81,10 @@ export function TodayTasksPage({ day, revisit }: { day: string; revisit: number 
     setMenu(null);
     try {
       await updateTodayTaskStatus(task.id, status);
-      correctToday({ kind: 'today-status', id: task.id, status }, day);
-      invalidateXp(day);
-      void cache.refresh();
+      const currentDay = businessDate();
+      if (currentDay === day) correctToday({ kind: 'today-status', id: task.id, status }, day);
+      else invalidate('today', currentDay);
+      invalidateXp(currentDay);
     } catch (exception) {
       setError(exception instanceof Error ? exception.message : 'Unable to update task.');
     } finally {
@@ -95,9 +97,10 @@ export function TodayTasksPage({ day, revisit }: { day: string; revisit: number 
     setBusy(archiveId);
     try {
       await archiveTodayTask(archiveId);
-      correctToday({ kind: 'today-remove', id: archiveId }, day);
-      invalidateXp(day);
-      void cache.refresh();
+      const currentDay = businessDate();
+      if (currentDay === day) correctToday({ kind: 'today-remove', id: archiveId }, day);
+      else invalidate('today', currentDay);
+      invalidateXp(currentDay);
       setArchiveId(null);
     } catch (exception) {
       setError(exception instanceof Error ? exception.message : 'Unable to archive task.');

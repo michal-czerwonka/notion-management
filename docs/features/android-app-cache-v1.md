@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented; Android manual acceptance pending
+Review fixes implemented; Android manual acceptance pending; not ready
 
 ## Goal
 
@@ -163,6 +163,7 @@ During implementation, run `npm run build` in `NotionManagementApp`. Manually ve
 - Confirmed Inbox and Today changes remain visible during refreshes through per-entry corrections; routine occurrences retain the higher server version. A successful mutation invalidates affected data and refreshes the visible screen.
 - Added the approved `@capacitor/app` v8 plugin and synced the Android project. The existing backend endpoints and response contracts were unchanged.
 - No material deviations from the approved design. Device-level manual verification remains to be performed.
+- Follow-up implementation pass resolved the three Important review findings: obsolete-day cache writes are rejected, an active affected screen reloads on invalidation, and removal corrections retire when a GET confirms absence.
 
 ## Validation performed
 
@@ -170,12 +171,38 @@ During implementation, run `npm run build` in `NotionManagementApp`. Manually ve
 - `npx cap sync android` passed and registered `@capacitor/app@8.1.1`.
 - `git diff --check` passed; the implementation diff was inspected for request ordering, day boundaries, persistence, mutation reconciliation, and UI state.
 - Android network and 03:00 acceptance scenarios were not run in this environment because `adb` is unavailable.
+- After the review fixes, `npm run build` passed with access to the existing `dist` directory; the routine validation script, TypeScript check, and Vite build all passed. The unstaged and staged diffs passed `git diff --check`.
 
 ## Review findings
 
+Review date: 2026-09-27. Comparison base: `main...HEAD` on branch `android-app-cache-v1`. Local `main` exists; its remote freshness was not verified and no fetch was performed. The three-dot diff contains only the feature document, so this review also inspected the staged implementation (`git diff --cached`). Findings refer to the current working-tree source. Production code was not changed during review.
+
+1. **Important — Late previous-day mutations can replace current-day cache entries.** `src/cache/screenCache.ts:248-254` creates an entry for the caller's day when no matching entry exists, overwrites the map value indexed only by resource key, and increments the shared generation. Inbox/Today callbacks retain the day captured before their awaited write; Routines passes `request.expectedBusinessDate`. If a write starts before 03:00 and its confirmation arrives after the new day's GET starts or completes, it replaces the new-day entry and invalidates that GET's generation. The callback's old-day refresh cannot commit because `requestData` rejects results for an obsolete day. The visible screen can consequently lose its data without recovering automatically. Recommendation: reject obsolete-day cache writes and requests before changing entries or generations; where the completed mutation affects the current day, explicitly invalidate and refresh the current-day resource without applying an old-day snapshot.
+
+   **Addressed in follow-up implementation:** Cache mutations and requests now reject an obsolete business date before touching entries or generations. Inbox and Today completions that cross 03:00 invalidate the current-day resource without applying the old-day correction. A subscribed current-day screen then reloads.
+
+2. **Important — Invalidation does not refresh an affected screen that became visible during a write.** `src/cache/screenCache.ts:236-244` subscribes only to view updates; requests are triggered on mount/key/day/revisit changes or explicit refresh. `invalidate`/`invalidateXp` notify subscribers but do not start a new GET. For example, open cached XP, switch to Today, start a completion, then return to XP before the PATCH completes. The completion invalidates XP, but its callback refreshes Today through the old page instance. XP remains stale until another visit or manual refresh; if its GET was in progress, invalidation also discards that result without starting a replacement. Recommendation: make invalidation trigger a request for the currently subscribed affected resource, while leaving inactive resources deferred until entry.
+
+   **Addressed in follow-up implementation:** Each mounted resource registers its loader. Invalidation starts a replacement GET for that resource if it is currently subscribed; inactive resources remain invalidated until entry. Mutation callbacks no longer force a GET through a page instance that may have unmounted.
+
+3. **Important — Removal corrections never retire after server confirmation.** In `src/cache/screenCache.ts:176-179` and `191-194`, Inbox/Today removal corrections are always added to `outstanding`, including when the incoming list already omits the removed item. They persist until the business day changes. If a user restores the archived item in Notion later that day, every successful refresh still filters it out, contrary to the design's rule to retain corrections only until a GET reflects them. Recommendation: retire a removal correction when an authoritative GET first confirms the item's absence, just as matching upsert/status corrections are retired.
+
+   **Addressed in follow-up implementation:** Inbox and Today removal corrections are retired when a successful GET omits the removed item, allowing a later restored item to appear on refresh.
+
+Review validation: the routine validation script and TypeScript check passed. The first `npm run build` reached Vite but failed with `EPERM` when preparing the existing `dist/assets` directory. Re-running the same build with `--outDir` pointing to a temporary directory passed, including the Vite production bundle. `git diff --cached --check` passed. Findings are based on source and control-flow inspection; Android runtime, network inspection, process-restart, and 03:00 scenarios were not executed in this review. No automated tests were added. Native Android build and user acceptance remain unverified.
 
 ## Manual acceptance checklist
 
+- [ ] On each of Inbox, Today, Routines, and XP, clear app data and open the screen: show initial loading (never a premature empty state), yellow request status, and `Dane z —`; after success show data or a genuine empty state, green status, and a Warsaw timestamp including seconds.
+- [ ] Inspect network requests while switching tabs, resuming the app, and restarting its process: within 60 seconds of the last completed GET, reuse current-day data without another GET; after 60 seconds, show cached data while refreshing. Leaving a screen open beyond 60 seconds must not itself fetch.
+- [ ] Force a GET failure with and without cached data: show red status and an error, preserve usable data and its timestamp, suppress automatic retry within 60 seconds even after restart, and retry on a later visit. Manual refresh must retry immediately and show yellow, then green after recovery. Repeated refresh taps must share the same in-flight GET.
+- [ ] Exercise Inbox create/edit/delete/move, Today status/archive, and routine complete/reopen/skip: preserve confirmed changes through stale or failed GETs, refresh the visible affected screen, and invalidate other affected screens for their next entry. Confirm routine version conflicts and retry behavior still work.
+- [ ] With a delayed write response, switch to another affected screen before completion (Today to XP, Routines to XP, Inbox move to Today): the newly visible screen must refresh immediately on confirmation, including when it already has a GET in flight. Unaffected historical XP periods must remain reusable.
+- [ ] After archiving an Inbox/Today item and observing a GET that confirms its absence, restore it in Notion on the same business day: manual refresh must display it again.
+- [ ] Visit multiple XP periods and starts: verify independent freshness intervals, same-day selection restoration after navigation/restart, and `Today` selecting the current business date under normal cache rules.
+- [ ] Cross 03:00 Warsaw with each screen visible and with the app suspended, including XP on a historical period: hide old-day data, show loading, fetch the new day, and reset XP to `Today`. Repeat with a device time zone other than Warsaw.
+- [ ] Delay a successful mutation response across 03:00 until after the new-day GET starts or finishes: current-day data must not disappear or be replaced by an old-day correction, and the new-day request must still complete normally.
+- [ ] With unavailable or corrupt IndexedDB data, verify the API remains usable and cache/selection recovery does not crash or indefinitely block the screen.
 
 ## Open questions
 
