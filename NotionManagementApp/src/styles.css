@@ -21,6 +21,15 @@ button:focus-visible, input:focus-visible { outline: 3px solid #7656bd; outline-
 .app-mark { display: grid; place-items: center; width: 56px; height: 56px; flex-shrink: 0; background: #e9defa; color: #604393; border-radius: 18px; font-size: 32px; }
 h1 { margin: 0; font-size: 32px; font-weight: 600; letter-spacing: -.8px; }
 .page-header p { margin: 6px 0 0; color: #68616f; line-height: 1.5; }
+.cache-header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: -22px 0 26px; color: #706878; font-size: 12px; }
+.cache-timestamp { font-variant-numeric: tabular-nums; }
+.cache-refresh { display: grid; place-items: center; width: 36px; min-height: 36px; padding: 0; border-radius: 50%; background: transparent; color: #67508f; font-size: 24px; }
+.cache-refresh:hover { background: #ede7f4; }
+.cache-indicator { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.cache-indicator.ready { background: #34834d; }
+.cache-indicator.loading { background: #d3a523; }
+.cache-indicator.failed { background: #ba3934; }
+.cache-error { color: #922c27; flex-basis: 100%; }
 .capture-card { background: #fff; border: 1px solid #e8e2ee; border-radius: 24px; padding: 24px; box-shadow: 0 3px 12px #30204006; }
 label { display: block; font-weight: 600; margin-bottom: 14px; }
 .input-row { display: flex; gap: 12px; }

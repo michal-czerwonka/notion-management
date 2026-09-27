@@ -1,71 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getRoutineTasks, RoutineApiError, updateRoutineTask, type RoutineMutationRequest, type RoutineState, type RoutineTask, type RoutineTaskList } from '../api/routineTasks';
+import { CacheHeader } from '../cache/CacheHeader';
+import { businessDate } from '../cache/businessTime';
+import { correctRoutine, invalidate, invalidateXp, useCachedResource } from '../cache/screenCache';
 
 type FailedOperation = { request: RoutineMutationRequest; message: string };
-const timeZone = 'Europe/Warsaw';
-
-function getWarsawParts(date = new Date()) {
-  const parts = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23' }).formatToParts(date);
-  const value = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find(part => part.type === type)?.value);
-  return { year: value('year'), month: value('month'), day: value('day'), hour: value('hour') };
-}
-
-function nextResetTime() {
-  const { year, month, day, hour } = getWarsawParts();
-  const resetDate = new Date(Date.UTC(year, month - 1, day + (hour >= 3 ? 1 : 0)));
-  const targetAtUtc = Date.UTC(resetDate.getUTCFullYear(), resetDate.getUTCMonth(), resetDate.getUTCDate(), 3);
-  const displayedAtTarget = getWarsawParts(new Date(targetAtUtc));
-  const offset = Date.UTC(displayedAtTarget.year, displayedAtTarget.month - 1, displayedAtTarget.day, displayedAtTarget.hour) - targetAtUtc;
-  return targetAtUtc - offset;
-}
-
-function mergeLoadedList(current: RoutineTaskList | null, incoming: RoutineTaskList) {
-  if (!current || current.businessDate !== incoming.businessDate) return incoming;
-  const currentTasks = new Map(current.tasks.map(task => [task.id, task]));
-  return {
-    ...incoming,
-    tasks: incoming.tasks.map(task => {
-      const currentTask = currentTasks.get(task.id);
-      return currentTask && currentTask.version > task.version ? currentTask : task;
-    }),
-  };
-}
-
-function mergeOccurrence(current: RoutineTaskList | null, expectedBusinessDate: string, occurrence: RoutineTask) {
-  if (!current || current.businessDate !== expectedBusinessDate) return current;
-  const currentTask = current.tasks.find(task => task.id === occurrence.id);
-  if (!currentTask || occurrence.version < currentTask.version) return current;
-  return { ...current, tasks: current.tasks.map(task => task.id === occurrence.id ? occurrence : task) };
-}
-
-export function RoutineTasksPage() {
-  const [list, setList] = useState<RoutineTaskList | null>(null);
-  const [loading, setLoading] = useState(true);
+export function RoutineTasksPage({ day, revisit }: { day: string; revisit: number }) {
+  const cache = useCachedResource<RoutineTaskList>('routines', day, getRoutineTasks, revisit);
+  const list = cache.data ?? null;
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [failed, setFailed] = useState<Record<string, FailedOperation>>({});
-  const loadGeneration = useRef(0);
-
-  const load = useCallback(async () => {
-    const generation = ++loadGeneration.current;
-    setLoading(true); setError('');
-    try {
-      const incoming = await getRoutineTasks();
-      if (generation !== loadGeneration.current) return;
-      setList(current => mergeLoadedList(current, incoming));
-      setFailed({});
-    } catch (exception) {
-      if (generation === loadGeneration.current) setError(exception instanceof Error ? exception.message : 'Nie udało się pobrać zadań rutynowych.');
-    } finally {
-      if (generation === loadGeneration.current) setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { void load(); }, [load]);
-  useEffect(() => {
-    const timeout = window.setTimeout(() => void load(), Math.max(0, nextResetTime() - Date.now()) + 100);
-    return () => window.clearTimeout(timeout);
-  }, [list?.businessDate, load]);
+  useEffect(() => { setFailed({}); }, [cache.fetchedAt]);
 
   async function change(task: RoutineTask, target: RoutineState, retry?: RoutineMutationRequest) {
     if (!list) return;
@@ -75,14 +21,15 @@ export function RoutineTasksPage() {
     setFailed(current => { const next = { ...current }; delete next[task.id]; return next; });
     try {
       const result = await updateRoutineTask(task.id, request);
-      setList(current => mergeOccurrence(current, request.expectedBusinessDate, result.occurrence));
+      correctRoutine(result.occurrence, request.expectedBusinessDate);
+      invalidateXp(request.expectedBusinessDate);
     } catch (exception) {
       if (exception instanceof RoutineApiError && exception.status === 409) {
         const conflict = exception.conflict;
         if (conflict?.occurrence && conflict.businessDate === request.expectedBusinessDate) {
-          setList(current => mergeOccurrence(current, conflict.businessDate, conflict.occurrence!));
+          correctRoutine(conflict.occurrence, conflict.businessDate);
           setError('Stan zadania został odświeżony po zmianie z innego żądania.');
-        } else await load();
+        } else invalidate('routines', businessDate());
       } else {
         setFailed(current => ({ ...current, [task.id]: { request, message: exception instanceof Error ? exception.message : 'Nie udało się zapisać zmiany.' } }));
       }
@@ -92,12 +39,13 @@ export function RoutineTasksPage() {
   const tasks = list?.tasks ?? [];
   return <>
     <header className="page-header"><span className="app-mark" aria-hidden="true">↻</span><div><h1>Zadania rutynowe</h1><p>Twój dzień trwa od 03:00 do 03:00 czasu polskiego.</p></div></header>
-    <section className="routine-list" aria-labelledby="routine-heading" aria-busy={loading}>
-      <div className="section-heading"><h2 id="routine-heading">Zaplanowane na dziś <span className="count">{tasks.length}</span></h2><button className="text-button" type="button" onClick={() => void load()} disabled={loading}>Odśwież</button></div>
-      {loading && <p className="state">Ładowanie zadań rutynowych…</p>}
+    <CacheHeader fetchedAt={cache.fetchedAt} loading={cache.loading} error={cache.error} refresh={() => void cache.refresh()} />
+    <section className="routine-list" aria-labelledby="routine-heading" aria-busy={cache.loading}>
+      <div className="section-heading"><h2 id="routine-heading">Zaplanowane na dziś <span className="count">{tasks.length}</span></h2></div>
+      {cache.loading && !cache.data && <p className="state">Ładowanie zadań rutynowych…</p>}
       {error && <p className="error">{error}</p>}
-      {!loading && list && tasks.length === 0 && <div className="empty-state"><span aria-hidden="true">✓</span><h3>Bez zadań rutynowych</h3><p>Na ten dzień nic nie zostało zaplanowane.</p></div>}
-      {!loading && tasks.length > 0 && <ul>{tasks.map(task => {
+      {list && tasks.length === 0 && <div className="empty-state"><span aria-hidden="true">✓</span><h3>Bez zadań rutynowych</h3><p>Na ten dzień nic nie zostało zaplanowane.</p></div>}
+      {tasks.length > 0 && <ul>{tasks.map(task => {
         const isSkipped = task.state === 'skipped';
         const isBusy = busy[task.id] === true;
         const failure = failed[task.id];

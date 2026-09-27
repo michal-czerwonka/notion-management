@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { createInboxItem, deleteInboxItem, getInbox, moveInboxItemToTasks, updateInboxItem, type InboxItem } from '../api/inbox';
+import { CacheHeader } from '../cache/CacheHeader';
+import { businessDate } from '../cache/businessTime';
+import { correctInbox, invalidate, useCachedResource } from '../cache/screenCache';
 
-export function InboxPage() {
-  const [items, setItems] = useState<InboxItem[]>([]);
+export function InboxPage({ day, revisit }: { day: string; revisit: number }) {
+  const cache = useCachedResource<InboxItem[]>('inbox', day, getInbox, revisit);
+  const items = cache.data ?? [];
   const [name, setName] = useState('');
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [loadError, setLoadError] = useState('');
   const [saveError, setSaveError] = useState('');
   const [notice, setNotice] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -21,25 +23,6 @@ export function InboxPage() {
   const editInput = useRef<HTMLInputElement>(null);
   const submitting = useRef(false);
 
-  async function refresh(signal?: AbortSignal) {
-    setLoading(true);
-    setLoadError('');
-    try {
-      const result = await getInbox(signal);
-      if (!signal?.aborted) setItems(result);
-    } catch (error) {
-      if (!signal?.aborted) setLoadError(error instanceof Error ? error.message : 'Nie udało się pobrać Inbox.');
-    } finally {
-      if (!signal?.aborted) setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    const controller = new AbortController();
-    void refresh(controller.signal);
-    return () => controller.abort();
-  }, []);
-
   useEffect(() => {
     editInput.current?.focus();
   }, [editingId]);
@@ -47,7 +30,7 @@ export function InboxPage() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const value = name.trim();
-    if (!value || submitting.current || loading) return;
+    if (!value || submitting.current || (cache.loading && !cache.data)) return;
     submitting.current = true;
     setSaving(true);
     setSaveError('');
@@ -55,10 +38,10 @@ export function InboxPage() {
     try {
       const item = await createInboxItem(value);
       setName('');
-      setItems(current => [item, ...current.filter(existing => existing.id !== item.id)]);
+      const currentDay = businessDate();
+      if (currentDay === day) correctInbox({ kind: 'inbox-upsert', item }, day);
+      else invalidate('inbox', currentDay);
       setNotice('Dodano do Inbox.');
-      // Keep the confirmed item visible even when the subsequent refresh fails.
-      await refresh();
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Nie udało się dodać wpisu.');
     } finally {
@@ -89,7 +72,9 @@ export function InboxPage() {
     setEditingError('');
     try {
       const updatedItem = await updateInboxItem(item.id, value);
-      setItems(current => current.map(existing => existing.id === updatedItem.id ? updatedItem : existing));
+      const currentDay = businessDate();
+      if (currentDay === day) correctInbox({ kind: 'inbox-upsert', item: updatedItem }, day);
+      else invalidate('inbox', currentDay);
       cancelEditing();
       setNotice('Zapisano zmiany.');
     } catch (error) {
@@ -107,7 +92,10 @@ export function InboxPage() {
     setNotice('');
     try {
       await moveInboxItemToTasks(item.id);
-      setItems(current => current.filter(existing => existing.id !== item.id));
+      const currentDay = businessDate();
+      if (currentDay === day) correctInbox({ kind: 'inbox-remove', id: item.id }, day);
+      else invalidate('inbox', currentDay);
+      invalidate('today', currentDay);
       setNotice('Przeniesiono do Zadań na dzisiaj.');
     } catch (error) {
       setMovingError({
@@ -127,7 +115,9 @@ export function InboxPage() {
     setNotice('');
     try {
       await deleteInboxItem(item.id);
-      setItems(current => current.filter(existing => existing.id !== item.id));
+      const currentDay = businessDate();
+      if (currentDay === day) correctInbox({ kind: 'inbox-remove', id: item.id }, day);
+      else invalidate('inbox', currentDay);
       setNotice('Usunięto wpis z Inbox.');
     } catch (error) {
       setDeletingError({
@@ -145,6 +135,7 @@ export function InboxPage() {
         <span className="app-mark" aria-hidden="true">↓</span>
         <div><h1>Inbox</h1><p>Zapisz myśl. Wrócisz do niej później.</p></div>
       </header>
+      <CacheHeader fetchedAt={cache.fetchedAt} loading={cache.loading} error={cache.error} refresh={() => void cache.refresh()} />
 
       <section className="capture-card" aria-label="Nowy wpis">
         <form onSubmit={event => void submit(event)}>
@@ -154,7 +145,7 @@ export function InboxPage() {
               placeholder="Zapisz szybką myśl…" autoComplete="off" enterKeyHint="send"
               readOnly={saving} onChange={event => setName(event.target.value)}
               onKeyDown={event => { if (event.key === 'Enter' && event.nativeEvent.isComposing) event.preventDefault(); }} />
-            <button className="primary" type="submit" disabled={!name.trim() || saving || loading}>
+            <button className="primary" type="submit" disabled={!name.trim() || saving || (cache.loading && !cache.data)}>
               {saving ? 'Zapisywanie…' : 'Dodaj'}
             </button>
           </div>
@@ -164,14 +155,12 @@ export function InboxPage() {
         <p className="notice" role="status">{notice}</p>
       </section>
 
-      <section className="inbox-list" aria-labelledby="list-heading" aria-busy={loading}>
+      <section className="inbox-list" aria-labelledby="list-heading" aria-busy={cache.loading}>
         <div className="section-heading">
           <h2 id="list-heading">Twoje wpisy <span className="count">{items.length}</span></h2>
-          <button type="button" className="text-button" disabled={loading || saving} onClick={() => void refresh()}>Odśwież</button>
         </div>
-        {loading && <p className="state" role="status">Pobieranie wpisów…</p>}
-        {loadError && <p className="error" role="alert">{loadError} Użyj przycisku Odśwież.</p>}
-        {!loading && !loadError && items.length === 0 && (
+        {cache.loading && !cache.data && <p className="state" role="status">Pobieranie wpisów…</p>}
+        {cache.data && items.length === 0 && (
           <div className="empty-state"><span aria-hidden="true">✓</span><h3>Miejsce na nowe myśli</h3><p>Inbox jest pusty. Dodaj swój pierwszy wpis powyżej.</p></div>
         )}
         {items.length > 0 && <ul>{items.map(item => {
