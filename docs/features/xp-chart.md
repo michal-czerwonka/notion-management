@@ -2,7 +2,7 @@
 
 ## Status
 
-Business discovery, technical design, and implementation complete; manual acceptance pending
+Business discovery, technical design, implementation, and independent code review complete; review finding addressed in implementation; device verification and manual acceptance pending
 
 ## Goal
 
@@ -120,6 +120,7 @@ Implementation sequence:
 - Added `TaskXp:ChartMaxXp` to versioned development configuration, deployment app settings, and the local settings example. The Android API receives the configured maximum with each chart response and clips only bar height.
 - Added independent 14-, 30-, and 90-day cached views, response and persisted-cache validation, XP invalidation, manual refresh, and retained successful data on refresh errors. The navigation now has the agreed two rows.
 - No data migration or new dependency was required. The existing progress endpoint remains unchanged.
+- Accessibility follow-up: removed `role="img"` from the chart container and added a visually hidden semantic table with every business date and its unclipped XP value. The visual bars remain unchanged.
 
 ## Validation performed
 
@@ -127,10 +128,25 @@ Implementation sequence:
 - `npm run build -- --mode development-phone --outDir <writable build directory>` passed, including the existing routine validation, TypeScript check, and Vite bundle. The standard `dist` path was inaccessible in this sandbox, so the same build ran with an alternate output directory.
 - `git diff --check` passed. Reviewed the full change set against the confirmed requirements and implementation plan.
 - Live Cosmos/API comparisons, daylight-saving boundary requests, and on-device visual/manual acceptance checks have not been run in this environment.
+- Accessibility follow-up: `npm run build -- --mode development-phone --outDir <writable build directory>` passed after adding the daily XP table; `git diff --check` passed. Screen-reader behaviour on an Android device remains unverified.
 
 ## Review findings
 
+Reviewed on 2026-09-27 against local `main...HEAD` (`c66b6bf...ed366c6`). The local `main` matches the locally known `origin/main`; no fetch was performed, so its freshness against the remote was not verified.
+
+- **Important — Daily XP data was unavailable to screen readers (addressed in implementation; device check pending).** The reviewed version of `XpChartPage.tsx:25-38` exposed only a labelled `role="img"`; daily dates and values were inaccessible. The follow-up implementation adds a visually hidden date/XP table outside the visual plot and removes that role. Confirm the series is announced correctly on an Android device.
+
+Known limitations of this review: live Cosmos/API comparisons, requests around the 03:00 business-day and daylight-saving boundaries, and visual checks on an Android device were not performed. Readiness remains pending device screen-reader verification and manual acceptance.
+
 ## Manual acceptance checklist
+
+- [ ] On a phone, confirm two navigation rows in the agreed order. Open `Diagram XP`, change to 30 and 90 days, then leave and reopen it; the range should reset to 14 days.
+- [ ] For each range, confirm the response and chart contain that many consecutive business dates ending today, including across a month or year boundary. Before and after 03:00 Europe/Warsaw, confirm the current business day changes at the correct time; check both daylight-saving transitions when possible.
+- [ ] Compare several chart days with `Postęp XP` for the same day: task XP, routine XP, corrections/revocations, zero XP, and a negative signed aggregate. Confirm missing history dates show empty slots only after a successful read.
+- [ ] Confirm the XP axis remains fixed at the configured maximum (initially 300), zero bars leave a daily slot, equal positive bars touch, and values at and above the maximum have identical heights. On a narrow phone, scroll through 90 days while the XP scale stays visible.
+- [ ] With a screen reader, confirm each date and its full XP value can be read in order for all three ranges, including zero and above-scale values.
+- [ ] Trigger a fresh-load API failure and confirm an error appears without an invented zero chart. After a successful load, trigger a failed manual refresh and confirm the previous chart stays visible with an error. Restore the API and refresh again.
+- [ ] Complete or reopen a task or routine, then confirm the chart and `Postęp XP` refresh to matching values. Confirm a new business day shifts the chart range.
 
 ## Open questions
 

@@ -22,13 +22,13 @@ export function XpChartPage({ day, revisit }: { day: string; revisit: number }) 
       {cache.loading && !chart && <p className="state">Ładowanie diagramu XP…</p>}
       {chart && <>
         <div className="section-heading"><h2>{chart.startDate} – {chart.endDate}</h2></div>
-        <div className="xp-chart-layout" role="img" aria-label={`Diagram XP od ${chart.startDate} do ${chart.endDate}. Skala od 0 do ${chart.chartMaxXp} XP.`}>
+        <div className="xp-chart-layout">
           <div className="xp-chart-axis" style={{ height: plotHeight }} aria-hidden="true">
             {ticks.map((tick, index) => <span key={index} style={{ bottom: `${index * 25}%` }}>{new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 2 }).format(tick)}</span>)}
           </div>
           <div className="xp-chart-scroll" tabIndex={0} aria-label="Przewijany diagram dzienny XP">
             <div className="xp-chart-content" style={{ width: chart.days.length * 18 }}>
-              <div className="xp-chart-plot" style={{ height: plotHeight }}>
+              <div className="xp-chart-plot" style={{ height: plotHeight }} aria-hidden="true">
                 {chart.days.map(entry => <div className="xp-chart-slot" key={entry.date}>
                   <div className="xp-chart-bar" style={{ height: `${Math.min(entry.earnedXp, chart.chartMaxXp) / chart.chartMaxXp * 100}%` }} />
                 </div>)}
@@ -38,6 +38,13 @@ export function XpChartPage({ day, revisit }: { day: string; revisit: number }) 
               </div>
             </div>
           </div>
+        </div>
+        <div className="sr-only">
+          <table>
+            <caption>Dzienne XP od {chart.startDate} do {chart.endDate}</caption>
+            <thead><tr><th scope="col">Data</th><th scope="col">XP</th></tr></thead>
+            <tbody>{chart.days.map(entry => <tr key={entry.date}><th scope="row">{entry.date}</th><td>{entry.earnedXp}</td></tr>)}</tbody>
+          </table>
         </div>
         <p className="hint">Każdy słupek oznacza jeden dzień. Przesuń wykres w poziomie, aby zobaczyć pozostałe dni.</p>
       </>}
