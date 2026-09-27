@@ -79,6 +79,7 @@ jobs:
               "TaskXp__Hard=$(jq -r '.functionApp.taskXpHard' "$config")" \
               "TaskXp__Epic=$(jq -r '.functionApp.taskXpEpic' "$config")" \
               "TaskXp__ProgressReconciliationSchedule=$(jq -r '.functionApp.taskXpProgressReconciliationSchedule' "$config")" \
+              "TaskXp__ChartMaxXp=$(jq -r '.functionApp.taskXpChartMaxXp' "$config")" \
               "TaskXp__NotionWebhookVerificationToken=$NOTION_WEBHOOK_VERIFICATION_TOKEN" \
               "RoutineTasks__RouteSegment=$(jq -r '.functionApp.routineTaskRouteSegment' "$config")" \
               "RoutineTasks__ConfigurationPath=$(jq -r '.functionApp.routineTaskConfigurationPath' "$config")" \

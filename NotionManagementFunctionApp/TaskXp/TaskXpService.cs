@@ -25,5 +25,11 @@ public sealed class TaskXpService(TaskXpRepository repository, IOptions<TaskXpOp
     }
     public bool IsEligible(BusinessPeriod period) => period.EndExclusive > targets.FirstEffectiveDate;
     public Task<XpProgressResult> GetProgressAsync(BusinessPeriod period, CancellationToken cancellationToken) => repository.GetProgressAsync(period, cancellationToken);
+    public Task<XpChartResult> GetChartAsync(int days, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        if (days is not (14 or 30 or 90)) throw new ArgumentOutOfRangeException(nameof(days));
+        var end = periods.BusinessDate(now);
+        return repository.GetChartAsync(end.AddDays(1 - days), end, options.Value.ChartMaxXp, cancellationToken);
+    }
     public Task ReconcileTargetsAsync(DateTimeOffset now, CancellationToken cancellationToken) => repository.ReconcileTargetsAsync(periods.BusinessDate(now), cancellationToken);
 }

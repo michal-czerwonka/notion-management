@@ -14,7 +14,9 @@ button { cursor: pointer; min-height: 48px; border: 0; border-radius: 24px; font
 button:disabled { cursor: default; opacity: .48; }
 button:focus-visible, input:focus-visible { outline: 3px solid #7656bd; outline-offset: 3px; }
 .app-shell { max-width: 760px; margin: 0 auto; padding: max(36px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(36px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); }
-.main-navigation { display: flex; gap: 6px; width: fit-content; padding: 4px; border-radius: 18px; background: #e9e3f0; }
+.main-navigation { display: grid; gap: 4px; width: fit-content; max-width: 100%; padding: 4px; border-radius: 18px; background: #e9e3f0; }
+.main-navigation-row { display: flex; gap: 6px; }
+.main-navigation-row button { flex: 1; }
 .main-navigation button { min-height: 40px; padding: 0 18px; border-radius: 14px; background: transparent; color: #584274; }
 .main-navigation button.active { background: #fff; color: #3e2c5e; box-shadow: 0 1px 4px #30204018; }
 .page-header { display: flex; gap: 18px; align-items: center; margin: 16px 0 36px; }
@@ -125,6 +127,18 @@ h3 { font-size: 18px; font-weight: 500; color: #403648; margin-bottom: 8px; }
 .xp-progress-fill { height: 100%; border-radius: inherit; background: #67508f; transition: width .2s ease; }
 .xp-progress-fill.success { background: #34834d; }
 .previous-period { justify-self: start; min-height: 42px; padding: 0 16px; background: #f1ecf6; color: #584274; }
+.xp-chart-card { display: grid; gap: 20px; min-width: 0; background: #fff; border: 1px solid #e8e2ee; border-radius: 24px; padding: 24px; box-shadow: 0 3px 12px #30204006; }
+.xp-chart-layout { display: flex; min-width: 0; }
+.xp-chart-axis { position: relative; width: 48px; flex: none; color: #706878; font-size: 12px; font-variant-numeric: tabular-nums; }
+.xp-chart-axis span { position: absolute; right: 8px; transform: translateY(50%); }
+.xp-chart-scroll { min-width: 0; overflow-x: auto; overscroll-behavior-inline: contain; }
+.xp-chart-scroll:focus-visible { outline: 3px solid #7656bd; outline-offset: -3px; }
+.xp-chart-plot { display: flex; align-items: stretch; background: repeating-linear-gradient(to bottom, #e9e3f0 0, #e9e3f0 1px, transparent 1px, transparent 25%); border-bottom: 1px solid #b5a7c5; }
+.xp-chart-slot { width: 18px; height: 100%; flex: none; display: flex; align-items: flex-end; }
+.xp-chart-bar { width: 100%; background: #67508f; }
+.xp-chart-dates { display: flex; height: 30px; }
+.xp-chart-date { position: relative; width: 18px; flex: none; color: #706878; font-size: 11px; }
+.xp-chart-date span { position: absolute; top: 6px; left: 0; white-space: nowrap; }
 @media (max-width: 420px) {
   .app-shell { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
   .capture-card { padding: 18px; }
@@ -140,6 +154,9 @@ h3 { font-size: 18px; font-weight: 500; color: #403648; margin-bottom: 8px; }
   .status-options { left: 16px; right: 16px; }
   .skip-button { align-self: flex-start; }
   .page-header { gap: 12px; }
+  .main-navigation { width: 100%; }
+  .main-navigation button { padding: 0 8px; font-size: 13px; }
+  .xp-chart-card { padding: 18px; }
 }
 .xp-history { margin-top: 32px; }
 .xp-history > h2 { margin-bottom: 12px; }

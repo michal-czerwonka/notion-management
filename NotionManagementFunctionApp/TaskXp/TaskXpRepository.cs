@@ -141,6 +141,51 @@ public sealed class TaskXpRepository
         var previous = Previous(period);
         return new XpProgressResult(period.Period, period.Start.ToString("yyyy-MM-dd"), period.EndExclusive.ToString("yyyy-MM-dd"), Math.Max(0, document?.SignedXp ?? 0), document?.TargetXp ?? _targets.TargetFor(period), previous?.Start.ToString("yyyy-MM-dd"), period.Period == "year" ? null : document?.CompletedTasks ?? []);
     }
+    public async Task<XpChartResult> GetChartAsync(DateOnly start, DateOnly end, int chartMaxXp, CancellationToken cancellationToken)
+    {
+        var values = new Dictionary<string, int>();
+        var query = new QueryDefinition("SELECT c.periodStart, c.signedXp FROM c WHERE c.profileId = @profileId AND c.type = 'xp-progress' AND c.period = 'day' AND c.periodStart >= @start AND c.periodStart <= @end")
+            .WithParameter("@profileId", ProfileId)
+            .WithParameter("@start", start.ToString("yyyy-MM-dd"))
+            .WithParameter("@end", end.ToString("yyyy-MM-dd"));
+        try
+        {
+            using var iterator = _container.GetItemQueryIterator<XpChartDayProjection>(query, requestOptions: new QueryRequestOptions { PartitionKey = new PartitionKey(ProfileId), MaxItemCount = 100 });
+            while (iterator.HasMoreResults)
+            {
+                var page = await iterator.ReadNextAsync(cancellationToken);
+                _logger.LogInformation("Read Task XP chart aggregates. Count={Count}, RequestCharge={RequestCharge}", page.Count, page.RequestCharge);
+                foreach (var item in page)
+                {
+                    if (item.PeriodStart is null || item.SignedXp is null || !DateOnly.TryParseExact(item.PeriodStart, "yyyy-MM-dd", out var date) || date < start || date > end || !values.TryAdd(item.PeriodStart, Math.Max(0, item.SignedXp.Value)))
+                        throw new InvalidOperationException("Invalid Task XP chart aggregate.");
+                }
+            }
+        }
+        catch (CosmosException exception)
+        {
+            _logger.LogError(exception, "Task XP chart read failed. StatusCode={StatusCode}, ActivityId={ActivityId}, RequestCharge={RequestCharge}", (int)exception.StatusCode, exception.ActivityId, exception.RequestCharge);
+            throw;
+        }
+        catch (InvalidOperationException exception)
+        {
+            _logger.LogError(exception, "Task XP chart mapping failed.");
+            throw;
+        }
+        catch (Newtonsoft.Json.JsonException exception)
+        {
+            _logger.LogError(exception, "Task XP chart mapping failed.");
+            throw;
+        }
+
+        var days = new List<XpChartDay>();
+        for (var date = start; date <= end; date = date.AddDays(1))
+        {
+            var key = date.ToString("yyyy-MM-dd");
+            days.Add(new XpChartDay(key, values.GetValueOrDefault(key)));
+        }
+        return new XpChartResult(start.ToString("yyyy-MM-dd"), end.ToString("yyyy-MM-dd"), chartMaxXp, days);
+    }
 
     public async Task ReconcileTargetsAsync(DateOnly businessDate, CancellationToken cancellationToken)
     {

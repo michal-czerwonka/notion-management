@@ -26,6 +26,7 @@
     "taskXpHard": 50,
     "taskXpEpic": 100,
     "taskXpProgressReconciliationSchedule": "0 0 3 * * *",
+    "taskXpChartMaxXp": 300,
     "taskXpDailyTargets": [
       { "effectiveFrom": "2026-09-17", "dailyTargetXp": 100 }
     ],
@@ -40,6 +41,7 @@
     "developmentApiUrl": "https://notion-management-func-fpa5c6g8f5fdftfb.westeurope-01.azurewebsites.net/api/inbox/a9cea60dda62442e",
     "developmentTodayTasksApiUrl": "https://notion-management-func-fpa5c6g8f5fdftfb.westeurope-01.azurewebsites.net/api/today-tasks/65aa9c24486c4e8a",
     "developmentXpProgressApiUrl": "https://notion-management-func-fpa5c6g8f5fdftfb.westeurope-01.azurewebsites.net/api/task-xp/slln0SDuDUGu-x264qt07Q/progress",
+    "developmentXpChartApiUrl": "https://notion-management-func-fpa5c6g8f5fdftfb.westeurope-01.azurewebsites.net/api/task-xp/slln0SDuDUGu-x264qt07Q/chart",
     "developmentRoutineTasksApiUrl": "https://notion-management-func-fpa5c6g8f5fdftfb.westeurope-01.azurewebsites.net/api/routine-tasks/-4h7ZPjH5dfzZSIP-HUdEMgc"
   }
 }
